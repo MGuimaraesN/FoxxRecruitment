@@ -3,12 +3,22 @@ import type { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../database/prisma.js';
 import { sendPasswordResetEmail, sendWelcomeEmail, sendSecurityAlert } from '../services/mail.service.js';
+import { upload } from '../middlewares/upload.middleware.js'; // Mantenha importado se for usar em outros métodos
 
 export class UserController {
 
     async register(req: Request, res: Response) {
         try {
-            const {firstName, lastName, email, password, institutionId} = req.body;
+            // Recebendo os novos campos
+            const {
+                firstName, 
+                lastName, 
+                email, 
+                password, 
+                institutionId, 
+                specialization, // Novo
+                educationLevel  // Novo
+            } = req.body;
 
             if (!email || !password || !institutionId) {
                 return res.status(400).json(
@@ -33,12 +43,15 @@ export class UserController {
                     lastName: lastName,
                     email: email,
                     password: hashedPassword,
-                    ip: ipUser
+                    ip: ipUser,
+                    // Salvando novos campos
+                    specialization: specialization || null,
+                    educationLevel: educationLevel || null
                 }});
 
             const userRole = await prisma.role.findUnique({ where: { name: 'student' } });
             if (!userRole) {
-                return res.status(500).json({ error: 'Cargo "user" não encontrado' });
+                return res.status(500).json({ error: 'Cargo "student" não encontrado' });
             }
 
             await prisma.userInstitutionRole.create({
@@ -54,18 +67,14 @@ export class UserController {
                 data: { activeInstitutionId: institutionId }
             });
 
-            // Envia e-mail de boas-vindas
             try {
                 await sendWelcomeEmail(newUser.email, newUser.firstName);
             } catch (emailError) {
                 console.error('Erro ao enviar e-mail de boas-vindas:', emailError);
-                // Não bloqueia o registro se o e-mail falhar
             }
 
             const secret = process.env.JWT_SECRET;
-
             if (!secret) {
-                // Se você esqueceu o .env, dará este erro
                 throw new Error('Secret não está definido!');
             }
 
@@ -89,8 +98,10 @@ export class UserController {
         };
     }
 
+    // ... (Mantenha os outros métodos: login, forgotPassword, resetPassword, profile, etc. inalterados)
     async login(req: Request, res: Response) {
-        try {
+        // ... código original do login
+         try {
             const {email, password} = req.body;
             const ipUser = req.ip || 'IP não disponível';
 
@@ -148,11 +159,10 @@ export class UserController {
             console.error('Erro ao fazer login:', error);
             return res.status(500).json({error: 'Erro interno do servidor'});
             };
-        }
-
-// --- MÉTODO PARA SOLICITAR REDEFINIÇÃO ---
+    }
+    
     async forgotPassword(req: Request, res: Response) {
-        try {
+         try {
             const { email } = req.body;
             if (!email) {
                 return res.status(400).json({ error: 'E-mail é obrigatório' });
@@ -197,9 +207,8 @@ export class UserController {
         }
     }
 
-    // --- MÉTODO PARA REDEFINIR A SENHA ---
     async resetPassword(req: Request, res: Response) {
-        try {
+         try {
             const { token, newPassword } = req.body;
 
             if (!token || !newPassword) {
@@ -267,9 +276,9 @@ export class UserController {
             return res.status(500).json({ error: 'Erro interno do servidor' });
         }
     }
-        
+
     async profile(req: Request, res: Response) {
-        try {
+         try {
             const userEmail = (req as any).user?.email;
 
             const userData = await prisma.user.findUnique({
@@ -302,96 +311,6 @@ export class UserController {
         } catch (error) {
             console.error('Erro detalhado ao obter perfil do usuário:', error);
             res.status(500).json({ error: 'Erro interno do servidor ao buscar perfil', details: (error as Error).message });
-        }
-    }
-
-    async changePassword(req: Request, res: Response) {
-        try {
-            const userEmail = (req as any).user?.email;
-            const { oldPassword, newPassword } = req.body;
-
-            const user = await prisma.user.findUnique({
-                where: { email: userEmail }
-            });
-
-            if (!user) {
-                return res.status(404).json({ error: 'Usuário não encontrado' });
-            }
-
-            const isMatch = await bcrypt.compare(oldPassword, user.password);
-
-            if (!isMatch) {
-                return res.status(401).json({ error: 'Senha antiga incorreta' });
-            }
-
-            const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-            await prisma.user.update({
-                where: { email: userEmail },
-                data: { password: hashedPassword }
-            });
-
-            // Envia alerta de segurança
-            try {
-                await sendSecurityAlert(user.email);
-            } catch (emailError) {
-                console.error('Erro ao enviar alerta de segurança (changePassword):', emailError);
-            }
-
-            res.status(200).json({ message: 'Senha alterada com sucesso' });
-        } catch (error) {
-            console.error('Erro ao alterar senha:', error);
-            res.status(500).json({ error: 'Erro interno do servidor' });
-        }
-    }
-
-    async switchInstitution(req: Request, res: Response) {
-        try {
-            const userEmail = (req as any).user?.email;
-            const { institutionId } = req.body;
-
-            const user = await prisma.user.findUnique({
-                where: { email: userEmail },
-                include: { institutions: true }
-            });
-
-            if (!user) {
-                return res.status(404).json({ error: 'Usuário não encontrado' });
-            }
-
-            const isMember = user.institutions.some(inst => inst.institutionId === institutionId);
-
-            if (!isMember) {
-                return res.status(403).json({ error: 'Usuário não pertence a esta instituição' });
-            }
-
-            const updatedUser = await prisma.user.update({
-                where: { email: userEmail },
-                data: { activeInstitutionId: institutionId }
-            });
-
-            const secret = process.env.JWT_SECRET;
-            if (!secret) {
-                throw new Error('Secret não está definido!');
-            }
-
-            const payload = {
-                userId: updatedUser.id,
-                firstName: updatedUser.firstName,
-                lastName: updatedUser.lastName,
-                email: updatedUser.email,
-                activeInstitutionId: updatedUser.activeInstitutionId
-            };
-
-            const token = jwt.sign(payload, secret, { expiresIn: '8h' });
-
-            res.status(200).json({
-                message: 'Instituição alterada com sucesso',
-                access_token: token
-            });
-        } catch (error) {
-            console.error('Erro ao trocar de instituição:', error);
-            res.status(500).json({ error: 'Erro interno do servidor' });
         }
     }
 
@@ -446,10 +365,13 @@ export class UserController {
             res.status(500).json({ error: 'Erro interno do servidor' });
         }
     }
-    // --- NOVO MÉTODO ---
+
     async uploadResume(req: Request, res: Response) {
-        try {
+         try {
             const userId = (req as any).user?.userId;
+            if (!userId) {
+                return res.status(401).json({ error: 'Usuário não autenticado' });
+            }
             if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo PDF enviado' });
             
             const resumeUrl = `/uploads/${req.file.filename}`;
@@ -461,6 +383,96 @@ export class UserController {
         } catch (error) {
             console.error('Erro upload CV:', error);
             res.status(500).json({ error: 'Erro interno' });
+        }
+    }
+
+    async changePassword(req: Request, res: Response) {
+        try {
+            const userEmail = (req as any).user?.email;
+            const { oldPassword, newPassword } = req.body;
+
+            const user = await prisma.user.findUnique({
+                where: { email: userEmail }
+            });
+
+            if (!user) {
+                return res.status(404).json({ error: 'Usuário não encontrado' });
+            }
+
+            const isMatch = await bcrypt.compare(oldPassword, user.password);
+
+            if (!isMatch) {
+                return res.status(401).json({ error: 'Senha antiga incorreta' });
+            }
+
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+            await prisma.user.update({
+                where: { email: userEmail },
+                data: { password: hashedPassword }
+            });
+
+            // Envia alerta de segurança
+            try {
+                await sendSecurityAlert(user.email);
+            } catch (emailError) {
+                console.error('Erro ao enviar alerta de segurança (changePassword):', emailError);
+            }
+
+            res.status(200).json({ message: 'Senha alterada com sucesso' });
+        } catch (error) {
+            console.error('Erro ao alterar senha:', error);
+            res.status(500).json({ error: 'Erro interno do servidor' });
+        }
+    }
+    
+    async switchInstitution(req: Request, res: Response) {
+         try {
+            const userEmail = (req as any).user?.email;
+            const { institutionId } = req.body;
+
+            const user = await prisma.user.findUnique({
+                where: { email: userEmail },
+                include: { institutions: true }
+            });
+
+            if (!user) {
+                return res.status(404).json({ error: 'Usuário não encontrado' });
+            }
+
+            const isMember = user.institutions.some(inst => inst.institutionId === institutionId);
+
+            if (!isMember) {
+                return res.status(403).json({ error: 'Usuário não pertence a esta instituição' });
+            }
+
+            const updatedUser = await prisma.user.update({
+                where: { email: userEmail },
+                data: { activeInstitutionId: institutionId }
+            });
+
+            const secret = process.env.JWT_SECRET;
+            if (!secret) {
+                throw new Error('Secret não está definido!');
+            }
+
+            const payload = {
+                userId: updatedUser.id,
+                firstName: updatedUser.firstName,
+                lastName: updatedUser.lastName,
+                email: updatedUser.email,
+                activeInstitutionId: updatedUser.activeInstitutionId
+            };
+
+            const token = jwt.sign(payload, secret, { expiresIn: '8h' });
+
+            res.status(200).json({
+                message: 'Instituição alterada com sucesso',
+                access_token: token
+            });
+        } catch (error) {
+            console.error('Erro ao trocar de instituição:', error);
+            res.status(500).json({ error: 'Erro interno do servidor' });
         }
     }
 };

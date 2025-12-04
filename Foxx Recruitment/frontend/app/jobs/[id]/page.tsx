@@ -10,7 +10,7 @@ import {
   CheckCircle2, Loader2, Share2, Mail, Phone,
   Briefcase, Globe, AlertCircle
 } from 'lucide-react';
-import Link from 'next/link';
+import { QuickApplyModal } from '@/components/QuickApplyModal'; // Importando
 
 interface Job {
     id: number;
@@ -24,85 +24,85 @@ interface Job {
     category: { name: string };
     author: { firstName: string; lastName: string };
     companyName?: string | null;
-    institution: { name: string };
+    institution: { id: number, name: string }; // Adicionado ID
     isPublic: boolean;
 }
 
 export default function JobDetailsPage() {
     const { id } = useParams();
     const router = useRouter();
-    const { token } = useAuth();
+    const { token, user } = useAuth(); // Pegando user também para verificar se tem currículo depois
     
     const [job, setJob] = useState<Job | null>(null);
     const [loading, setLoading] = useState(true);
     const [applying, setApplying] = useState(false);
     const [hasApplied, setHasApplied] = useState(false);
+    
+    // Novo estado para o modal
+    const [showQuickApply, setShowQuickApply] = useState(false);
 
-    // 1. Busca os detalhes da vaga
     useEffect(() => {
         const fetchJob = async () => {
             try {
                 const headers: any = {};
                 if (token) headers['Authorization'] = `Bearer ${token}`;
-
+                
+                // Tenta buscar (se for pública funciona sem token, se privada precisa de token)
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/jobs/${id}`, { headers });
                 if (res.ok) {
                     setJob(await res.json());
                 } else {
+                    // Se falhar (401/403) e não tiver token, talvez seja privada.
+                    // Mas como é uma página pública por definição (link compartilhado), 
+                    // assumimos que deve ser pública ou o usuário deve logar.
                     toast.error("Vaga não encontrada ou acesso restrito.");
-                    router.push('/dashboard');
                 }
             } catch (error) {
                 console.error(error);
-                toast.error("Erro ao carregar vaga.");
             } finally {
                 setLoading(false);
             }
         };
-        
         if (id) fetchJob();
-    }, [id, token, router]);
+    }, [id, token]);
 
-    // 2. Verifica se o usuário JÁ se candidatou
+    // Verifica se já aplicou (apenas se tiver token)
     useEffect(() => {
-        const checkApplicationStatus = async () => {
+        const checkStatus = async () => {
             if (!token || !id) return;
-
             try {
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/applications/my-applications`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-
                 if (res.ok) {
-                    const myApplications = await res.json();
-                    const alreadyApplied = myApplications.some((app: any) => app.jobId === Number(id));
-                    if (alreadyApplied) {
+                    const myApps = await res.json();
+                    if (myApps.some((app: any) => app.jobId === Number(id))) {
                         setHasApplied(true);
                     }
                 }
-            } catch (error) {
-                console.error("Erro ao verificar status da candidatura", error);
-            }
+            } catch (e) { console.error(e); }
         };
-
-        checkApplicationStatus();
+        checkStatus();
     }, [id, token]);
 
-    const handleApply = async () => {
-        if (!token) {
-            toast.error("Você precisa entrar na sua conta para se candidatar.");
-            // Salva a intenção de ir para esta vaga após login (opcional, lógica de redirect)
-            router.push('/login');
+    // Função que executa a candidatura (chamada pelo botão ou pelo modal de sucesso)
+    const executeApplication = async () => {
+        setApplying(true);
+        // Pega o token mais atual do localStorage pois o hook pode demorar um ciclo para atualizar
+        const currentToken = localStorage.getItem('access_token');
+        
+        if (!currentToken) {
+            toast.error("Erro de autenticação. Tente fazer login novamente.");
+            setApplying(false);
             return;
         }
 
-        setApplying(true);
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/applications/apply`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${currentToken}`
                 },
                 body: JSON.stringify({ jobId: id })
             });
@@ -119,43 +119,61 @@ export default function JobDetailsPage() {
                 toast.error(json.error || "Erro ao se candidatar.");
             }
         } catch (error) {
-            toast.error("Erro de rede. Tente novamente.");
+            toast.error("Erro de rede.");
         } finally {
             setApplying(false);
         }
     };
 
+    const handleApplyClick = () => {
+        if (!token) {
+            // Se não tem token, abre o modal de cadastro rápido
+            setShowQuickApply(true);
+        } else {
+            // Se tem token, aplica direto
+            executeApplication();
+        }
+    };
+
     const handleShare = () => {
         navigator.clipboard.writeText(window.location.href);
-        toast.success("Link copiado para a área de transferência!");
+        toast.success("Link copiado!");
     };
 
     if (loading) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-neutral-50">
-                <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                    <p className="text-sm text-neutral-500">Carregando oportunidade...</p>
-                </div>
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             </div>
         );
     }
 
-    if (!job) return null;
+    if (!job) return <div className="text-center py-20">Vaga não encontrada.</div>;
 
     const isOpen = ['published', 'open'].includes(job.status);
 
     return (
         <div className="min-h-screen bg-neutral-50 pb-20">
+            {/* Modal de Candidatura Rápida */}
+            {showQuickApply && job && (
+                <QuickApplyModal 
+                    isOpen={showQuickApply} 
+                    onClose={() => setShowQuickApply(false)}
+                    jobTitle={job.title}
+                    jobInstitutionId={job.institution.id}
+                    onSuccess={executeApplication} // Ao logar/cadastrar, tenta aplicar
+                />
+            )}
+
             {/* Header / Banner */}
             <div className="bg-white border-b border-neutral-200">
                 <div className="container mx-auto px-4 py-8 max-w-6xl">
                     <Button 
                         variant="ghost" 
-                        onClick={() => router.back()} 
+                        onClick={() => router.push('/')} // Voltar para home se não tiver histórico
                         className="mb-6 pl-0 text-neutral-500 hover:bg-transparent hover:text-blue-600 transition-colors group"
                     >
-                        <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Voltar
+                        <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Voltar ao Início
                     </Button>
 
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -232,7 +250,6 @@ export default function JobDetailsPage() {
                             />
                         </div>
 
-                        {/* Card de Segurança/Aviso */}
                         <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 flex gap-3 items-start">
                             <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
                             <div className="text-sm text-blue-900/80">
@@ -246,7 +263,6 @@ export default function JobDetailsPage() {
                     {/* COLUNA LATERAL: Ações e Detalhes */}
                     <div className="space-y-6">
                         
-                        {/* Card de Ação (Sticky) */}
                         <div className="bg-white rounded-xl p-6 shadow-sm border border-neutral-200 lg:sticky lg:top-24">
                             <div className="mb-6">
                                 <h3 className="text-lg font-bold text-neutral-900 mb-2">Interessado?</h3>
@@ -266,7 +282,7 @@ export default function JobDetailsPage() {
                                 isOpen ? (
                                     <Button 
                                         size="lg" 
-                                        onClick={handleApply} 
+                                        onClick={handleApplyClick} // Modificado para usar nova função
                                         disabled={applying}
                                         className="w-full bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 text-base h-12 mb-4 transition-all hover:scale-[1.02]"
                                     >
@@ -281,12 +297,6 @@ export default function JobDetailsPage() {
                                         Vaga Encerrada
                                     </Button>
                                 )
-                            )}
-
-                            {!token && !hasApplied && isOpen && (
-                                <p className="text-xs text-center text-neutral-400">
-                                    É necessário fazer login.
-                                </p>
                             )}
 
                             <hr className="my-6 border-neutral-100" />

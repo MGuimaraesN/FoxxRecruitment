@@ -25,23 +25,30 @@ model User {
   updatedAt           DateTime              @updatedAt
   createdAt           DateTime              @default(now())
   avatarUrl           String?
-  resumeUrl           String?               // Novo: URL do Currículo (PDF)
+  resumeUrl           String?               
   job                 Job[]
   institutions        UserInstitutionRole[]
   activeInstitutionId Int?
-  bio                 String?
+  bio                 String?               
   linkedinUrl         String?
   githubUrl           String?
   portfolioUrl        String?
   course              String?
   graduationYear      Int?
+  
+  // --- NOVOS CAMPOS PARA CANDIDATURA RÁPIDA ---
+  specialization      String?               // Ex: Front-end, Cardiologia
+  educationLevel      String?               // Ex: Doutorado, Mestre, Graduado
+  // --------------------------------------------
+
   resetToken          String?               @unique
   resetTokenExpiry    DateTime?
   savedJobs           SavedJob[]
   applications        Application[]
-  notifications       Notification[]        // Novo: Relacionamento com notificações
+  notifications       Notification[]        
 }
 
+// ... (Restante do schema permanece inalterado - Job, Application, etc.)
 model Job {
   id            Int           @id @default(autoincrement())
   authorId      Int
@@ -49,7 +56,7 @@ model Job {
   title         String
   email         String
   telephone     String
-  description   String
+  description   String       
   areaId        Int
   area          Area          @relation(fields: [areaId], references: [id])
   categoryId    Int
@@ -76,7 +83,7 @@ model Application {
   job       Job               @relation(fields: [jobId], references: [id])
   status    ApplicationStatus @default(PENDING)
   createdAt DateTime          @default(now())
-  resumeUrl String?           // Novo: Snapshot do currículo usado na aplicação
+  resumeUrl String?           
 
   @@unique([userId, jobId])
 }
@@ -116,12 +123,12 @@ model Area {
 }
 
 model Institution {
-  id    Int                   @id @default(autoincrement())
-  name  String                @unique
-  type  String                @default("university")
-  isActive  Boolean           @default(true) // <--- ADICIONE ESTA LINHA
-  jobs  Job[]
-  users UserInstitutionRole[]
+  id        Int                   @id @default(autoincrement())
+  name      String                @unique
+  type      String                @default("university")
+  isActive  Boolean               @default(true)
+  jobs      Job[]
+  users     UserInstitutionRole[]
 }
 
 model Role {
