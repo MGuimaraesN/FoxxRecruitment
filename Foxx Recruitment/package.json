@@ -1,0 +1,30 @@
+{
+  "name": "DecolaVagas",
+  "version": "1.0.0",
+  "description": "Um portal único que centraliza todas as oportunidades acadêmicas (estágios, IC e vagas) de todas as áreas. Chega de vagas perdidas em e-mails ou murais físicos. Professores e coordenadores postam, e todos os alunos podem filtrar e encontrar sua próxima oportunidade de forma fácil e rápida.",
+  "main": "index.js",
+  "scripts": {
+    "install:dev": "npm install && npm install --prefix backend && npm run dev:db --prefix backend && npm install --prefix frontend",
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "install:all": "npm install && npm install --prefix backend &&  npm install --prefix frontend && npm run start:db --prefix backend",
+    "build": "concurrently \"npm run build --prefix backend\" \"npm run build --prefix frontend\"",
+    "start:full": "concurrently \"npm run start --prefix backend\" \"npm run start --prefix frontend\"",
+    "start:backend": "concurrently \"npm run start --prefix backend\"",
+    "start:frontend": "concurrently \"npm run start --prefix frontend\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MGuimaraesN/Decola-Vagas.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/MGuimaraesN/Decola-Vagas/issues"
+  },
+  "homepage": "https://github.com/MGuimaraesN/Decola-Vagas#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

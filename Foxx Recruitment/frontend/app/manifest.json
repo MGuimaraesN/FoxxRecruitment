@@ -1,0 +1,21 @@
+{
+  "name": "Decola Vagas",
+  "short_name": "DecolaVagas",
+  "description": "O hub de oportunidades acadêmicas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/decola-vagas-logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/decola-vagas-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
