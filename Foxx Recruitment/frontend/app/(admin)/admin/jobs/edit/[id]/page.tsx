@@ -53,6 +53,7 @@ export default function AdminEditJobPage() {
   }, [id]);
 
   useEffect(() => {
+    document.title = 'Admin: Vagas | Decola Vagas';
     if (!token || !id) return;
 
     const fetchData = async () => {
@@ -207,8 +208,11 @@ export default function AdminEditJobPage() {
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium text-neutral-700">Descrição Completa</label>
-                            <div className="bg-white rounded-md border border-neutral-200 min-h-[300px]">
-                                <RichTextEditor value={description} onChange={setDescription} />
+                            {/* Correção de Layout: Container com max-w e overflow-hidden */}
+                            <div className="prose-sm w-full max-w-full overflow-hidden rounded-md border border-neutral-200">
+                                <div className="min-h-[300px]">
+                                     <RichTextEditor value={description} onChange={setDescription} />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -279,11 +283,11 @@ export default function AdminEditJobPage() {
                         <Select value={visibility} onValueChange={setVisibility} required>
                             <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="public">Pública (Aberta a todos)</SelectItem>
+                                <SelectItem value="public">Pública (Aberta)</SelectItem>
                                 <SelectItem value="private">Privada (Requer Login)</SelectItem>
                             </SelectContent>
                         </Select>
-                        <div className={`text-xs mt-2 p-2 rounded border ${visibility === 'public' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-yellow-50 border-yellow-100 text-yellow-700'}`}>
+                        <div className={`text-xs mt-2 p-2 rounded border leading-tight ${visibility === 'public' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-yellow-50 border-yellow-100 text-yellow-700'}`}>
                             {visibility === 'private' 
                                 ? 'Apenas usuários cadastrados no sistema poderão ver esta vaga.' 
                                 : 'Qualquer pessoa com o link poderá visualizar e se candidatar.'}
@@ -300,7 +304,7 @@ export default function AdminEditJobPage() {
                         </div>
                     )}
 
-                    <Button type="submit" form="edit-job-form" disabled={isSaving} className="w-full bg-blue-600 hover:bg-blue-700 h-11 mt-4 shadow-md shadow-blue-200">
+                    <Button type="submit" form="edit-job-form" disabled={isSaving} className="w-full bg-blue-600 hover:bg-blue-700 h-10 mt-4 shadow-sm">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : null}
                         {isSaving ? 'Salvando...' : 'Salvar Alterações'}
                     </Button>
@@ -318,11 +322,11 @@ export default function AdminEditJobPage() {
                     </p>
                     
                     <div className="flex items-center gap-2 mb-3">
-                        <div className="relative flex-1">
+                        <div className="relative flex-1 min-w-0">
                              <Input 
                                 readOnly 
                                 value={publicJobUrl} 
-                                className="bg-white border-emerald-200 text-xs h-9 pr-2 text-neutral-600 font-mono truncate focus-visible:ring-emerald-200" 
+                                className="bg-white border-emerald-200 text-xs h-9 pr-2 text-neutral-600 font-mono truncate focus-visible:ring-emerald-200 w-full" 
                             />
                         </div>
                         <Button size="icon" variant="outline" className="h-9 w-9 shrink-0 bg-white border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 shadow-sm" onClick={copyLink} title="Copiar">
@@ -331,7 +335,7 @@ export default function AdminEditJobPage() {
                     </div>
 
                     <Button variant="ghost" size="sm" className="w-full text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 text-xs h-8 justify-center border border-transparent hover:border-emerald-100" onClick={openLink}>
-                        <ExternalLink className="h-3 w-3 mr-2" /> Visualizar página da vaga
+                        <ExternalLink className="h-3 w-3 mr-2" /> Visualizar página
                     </Button>
                 </div>
             )}
