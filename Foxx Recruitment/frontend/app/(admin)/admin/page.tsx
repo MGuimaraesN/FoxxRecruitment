@@ -6,13 +6,14 @@ import { toast } from 'sonner';
 import { 
   Users, Building, Briefcase, CheckCircle, Edit3, Loader2, 
   ArrowUpRight, Plus, Search, GraduationCap, FileText, AlertCircle,
-  TrendingUp, Activity, CalendarDays
+  TrendingUp, Activity, CalendarDays, DollarSign, Layout
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 
 // --- Interfaces ---
 interface AdminStats {
@@ -36,59 +37,53 @@ type Stats = AdminStats | PersonalStats | null;
 
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}`;
 
-// --- Componente Card de Estatística Redesenhado ---
+// --- Componente Card de Estatística (Novo Padrão) ---
 function StatCard({
   title,
   value,
   icon: Icon,
-  color, // 'blue' | 'green' | 'orange' | 'purple' | 'red'
+  color, 
   subtext,
   alert
 }: {
   title: string;
   value: string | number;
   icon: React.ElementType;
-  color: string;
+  color: 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'amber';
   subtext?: string;
   alert?: boolean;
 }) {
-  // Mapeamento de cores para classes Tailwind
-  const colorMap: Record<string, { bg: string, text: string, border: string }> = {
-    blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
-    green: { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100' },
-    orange: { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100' },
-    purple: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100' },
-    red: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100' },
-    amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' },
-  };
-
-  const theme = colorMap[color] || colorMap.blue;
+  
+  const theme = {
+    blue: { bg: 'bg-blue-50', text: 'text-blue-600', ring: 'ring-blue-100' },
+    green: { bg: 'bg-emerald-50', text: 'text-emerald-600', ring: 'ring-emerald-100' },
+    orange: { bg: 'bg-orange-50', text: 'text-orange-600', ring: 'ring-orange-100' },
+    purple: { bg: 'bg-purple-50', text: 'text-purple-600', ring: 'ring-purple-100' },
+    red: { bg: 'bg-red-50', text: 'text-red-600', ring: 'ring-red-100' },
+    amber: { bg: 'bg-amber-50', text: 'text-amber-600', ring: 'ring-amber-100' },
+  }[color];
 
   return (
-    <div className={`relative overflow-hidden bg-white p-6 rounded-2xl border shadow-sm transition-all duration-300 hover:shadow-md group ${alert ? 'ring-2 ring-red-100 border-red-200' : 'border-neutral-100'}`}>
-      
-      {/* Background decorativo sutil */}
-      <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${theme.bg}`} />
-      
-      <div className="relative z-10 flex justify-between items-start">
-        <div>
-          <p className="text-sm font-medium text-neutral-500 mb-1">{title}</p>
+    <div className={`group relative overflow-hidden bg-white p-6 rounded-xl border border-neutral-200 shadow-sm hover:shadow-md transition-all duration-300 ${alert ? 'ring-2 ring-red-100 border-red-200' : ''}`}>
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-neutral-500">{title}</p>
           <h3 className="text-3xl font-bold text-neutral-900 tracking-tight">{value}</h3>
         </div>
-        <div className={`p-3 rounded-xl ${theme.bg} ${theme.text} ${alert ? 'animate-pulse' : ''}`}>
-          <Icon className="h-6 w-6" />
+        <div className={`p-3 rounded-xl ${theme.bg} ${theme.text} ring-1 ${theme.ring} group-hover:scale-110 transition-transform duration-300`}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
       
       {subtext && (
-        <div className="relative z-10 mt-4 flex items-center text-xs font-medium text-neutral-500">
+        <div className="mt-4 flex items-center text-xs font-medium">
           {alert ? (
-            <span className="flex items-center text-red-600 font-semibold bg-red-50 px-2 py-0.5 rounded-full">
-               Ação Necessária
+            <span className="flex items-center text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-100">
+               <AlertCircle className="h-3 w-3 mr-1.5" /> {subtext}
             </span>
           ) : (
-            <span className="flex items-center text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-              <TrendingUp className="h-3 w-3 mr-1" />
+            <span className="flex items-center text-neutral-500">
+              <TrendingUp className="h-3 w-3 mr-1.5 text-emerald-500" />
               {subtext}
             </span>
           )}
@@ -105,15 +100,10 @@ export default function AdminDashboardPage() {
   const { token, user } = useAuth();
 
   useEffect(() => {
-    document.title = 'Admin: Dashboard | FoxxRecruitment';
-  }, []);
-  
-  useEffect(() => {
+    document.title = 'Dashboard | Foxx Recruitment';
+    
     const fetchData = async () => {
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
+      if (!token) return;
       setIsLoading(true);
       try {
         const statsRes = await fetch(`${API_BASE_URL}/admin/stats`, {
@@ -147,57 +137,64 @@ export default function AdminDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-neutral-50">
+      <div className="flex h-[calc(100vh-100px)] items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
       </div>
     );
   }
 
-  if (!stats) return <div className="p-8 text-red-500">Erro ao carregar dados.</div>;
+  if (!stats) return <div className="p-8 text-red-500 text-center">Não foi possível carregar os dados do dashboard.</div>;
 
   const currentDate = new Date().toLocaleDateString('pt-BR', { 
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
 
   return (
-    <div className="space-y-8 pb-20 max-w-[1600px] mx-auto">
+    <div className="space-y-8 pb-20 max-w-[1600px] mx-auto px-2">
       
-      {/* --- HEADER DE BOAS-VINDAS --- */}
-      <div className="flex flex-col md:flex-row justify-between items-end gap-6 bg-white p-6 rounded-2xl shadow-sm border border-neutral-100">
-        <div>
-            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1 flex items-center gap-2">
-                <CalendarDays className="h-3 w-3" /> {currentDate}
-            </p>
-            <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">
-                Olá, {user?.firstName} 👋
+      {/* --- HEADER --- */}
+      <div className="flex flex-col md:flex-row justify-between items-end gap-6 bg-white p-8 rounded-2xl shadow-sm border border-neutral-200 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+             <Layout className="w-64 h-64 text-blue-600 -rotate-12" />
+        </div>
+
+        <div className="relative z-10">
+            <div className="flex items-center gap-2 text-blue-600 mb-2">
+                <CalendarDays className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">{currentDate}</span>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold text-neutral-900 tracking-tight">
+                Olá, {user?.firstName}
             </h1>
-            <p className="text-neutral-500 mt-1 text-sm">
+            <p className="text-neutral-500 mt-2 text-base max-w-lg">
                 {stats.type === 'global' 
-                    ? 'Aqui está o panorama geral do seu ecossistema SaaS hoje.' 
-                    : 'Gerencie suas vagas e acompanhe seus candidatos.'}
+                    ? 'Visão geral do ecossistema. Monitore o crescimento e a saúde da plataforma.' 
+                    : 'Acompanhe o desempenho das suas vagas e gerencie candidaturas recentes.'}
             </p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
+        
+        <div className="relative z-10 flex gap-3 w-full md:w-auto">
             {stats.type === 'global' ? (
-                 <Button asChild className="bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-200/50 h-11 px-6 rounded-xl w-full md:w-auto">
+                 <Button asChild className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-200/50 h-12 px-6 rounded-xl w-full md:w-auto text-base font-medium transition-all hover:scale-105">
                     <Link href="/admin/institutions">
-                        <Plus className="mr-2 h-4 w-4" /> Novo Tenant
+                        <Plus className="mr-2 h-5 w-5" /> Novo Tenant
                     </Link>
                 </Button>
             ) : (
-                <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200/50 h-11 px-6 rounded-xl w-full md:w-auto">
+                <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200/50 h-12 px-6 rounded-xl w-full md:w-auto text-base font-medium transition-all hover:scale-105">
                     <Link href="/admin/jobs/new">
-                        <Plus className="mr-2 h-4 w-4" /> Publicar Vaga
+                        <Plus className="mr-2 h-5 w-5" /> Publicar Vaga
                     </Link>
                 </Button>
             )}
         </div>
       </div>
 
-      {/* --- GRID DE ESTATÍSTICAS (KPIs) --- */}
+      {/* --- KPI GRID --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.type === 'global' ? (
-          // SUPER ADMIN
+          // SUPER ADMIN STATS
           <>
             <StatCard 
                 title="Tenants Ativos" 
@@ -207,29 +204,29 @@ export default function AdminDashboardPage() {
                 subtext="Faculdades & Empresas"
             />
             <StatCard 
-                title="Usuários na Plataforma" 
+                title="Usuários Totais" 
                 value={stats.userCount} 
                 icon={Users} 
                 color="blue"
-                subtext="Crescimento Mensal"
+                subtext="Alunos e Recrutadores"
             />
             <StatCard 
-                title="Total de Vagas" 
+                title="Vagas na Plataforma" 
                 value={stats.jobCount} 
                 icon={Briefcase} 
                 color="green"
-                subtext="Vagas ativas"
+                subtext="Oportunidades ativas"
             />
             <StatCard 
-                title="Total de Candidaturas" 
+                title="Candidaturas" 
                 value={stats.applicationCount} 
                 icon={Activity} 
                 color="purple"
-                subtext="Engajamento"
+                subtext="Volume total de aplicações"
             />
           </>
         ) : (
-          // TENANT ADMIN
+          // TENANT ADMIN / RECRUITER STATS
           <>
              <StatCard 
                 title="Revisão Pendente" 
@@ -237,28 +234,28 @@ export default function AdminDashboardPage() {
                 icon={AlertCircle} 
                 color="red"
                 alert={stats.pendingApplications > 0}
-                subtext="Candidatos aguardando"
+                subtext={stats.pendingApplications === 1 ? "1 candidato aguardando" : `${stats.pendingApplications} candidatos aguardando`}
             />
             <StatCard 
                 title="Vagas Publicadas" 
                 value={stats.publishedMyJobs} 
                 icon={CheckCircle} 
                 color="green"
-                subtext="Visíveis agora"
+                subtext="Visíveis no portal"
             />
             <StatCard 
                 title="Total de Candidatos" 
                 value={stats.totalApplications} 
                 icon={Users} 
                 color="blue"
-                subtext="Interesse total"
+                subtext="Interesse total acumulado"
             />
             <StatCard 
                 title="Rascunhos" 
                 value={stats.draftMyJobs} 
                 icon={Edit3} 
                 color="amber"
-                subtext="Vagas não finalizadas"
+                subtext="Vagas em edição"
             />
           </>
         )}
@@ -269,40 +266,40 @@ export default function AdminDashboardPage() {
         {/* --- COLUNA PRINCIPAL: Vagas Recentes --- */}
         <div className="xl:col-span-2 space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
-                <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-neutral-50/30">
+                <div className="p-6 border-b border-neutral-100 flex justify-between items-center">
                     <div>
                         <h3 className="font-bold text-lg text-neutral-900 flex items-center gap-2">
                             Vagas Recentes
                         </h3>
-                        <p className="text-xs text-neutral-500">Últimas oportunidades adicionadas ao sistema</p>
+                        <p className="text-sm text-neutral-500">Últimas oportunidades movimentadas.</p>
                     </div>
-                    <Button variant="ghost" size="sm" asChild className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                    <Button variant="ghost" size="sm" asChild className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-medium">
                         <Link href="/admin/jobs">
-                            Ver todas <ArrowUpRight className="ml-1 h-3 w-3" />
+                            Ver todas <ArrowUpRight className="ml-1 h-4 w-4" />
                         </Link>
                     </Button>
                 </div>
                 
                 <Table>
                     <TableHeader>
-                        <TableRow className="hover:bg-transparent border-neutral-100">
-                            <TableHead className="pl-6 w-[40%]">Título da Vaga</TableHead>
-                            <TableHead>Publicação</TableHead>
-                            <TableHead>Local</TableHead>
-                            <TableHead className="text-right pr-6">Status</TableHead>
+                        <TableRow className="bg-neutral-50/50 border-neutral-100">
+                            <TableHead className="pl-6 w-[40%] text-xs uppercase tracking-wider font-semibold text-neutral-500">Título</TableHead>
+                            <TableHead className="text-xs uppercase tracking-wider font-semibold text-neutral-500">Publicação</TableHead>
+                            <TableHead className="text-xs uppercase tracking-wider font-semibold text-neutral-500">Local</TableHead>
+                            <TableHead className="text-right pr-6 text-xs uppercase tracking-wider font-semibold text-neutral-500">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {recentJobs.length > 0 ? (
                             recentJobs.map((job) => (
-                                <TableRow key={job.id} className="hover:bg-neutral-50/50 border-neutral-50 group transition-colors">
-                                    <TableCell className="pl-6">
-                                        <div className="font-medium text-neutral-900 group-hover:text-blue-600 transition-colors">
+                                <TableRow key={job.id} className="hover:bg-neutral-50 group transition-colors border-neutral-50">
+                                    <TableCell className="pl-6 py-4">
+                                        <div className="font-semibold text-neutral-900 group-hover:text-blue-600 transition-colors">
                                             {job.title}
                                         </div>
                                         {stats.type === 'global' && job.institution && (
-                                            <div className="text-xs text-neutral-400 mt-0.5">
-                                                {job.institution.name}
+                                            <div className="text-xs text-neutral-400 mt-1 flex items-center gap-1">
+                                                <Building className="h-3 w-3" /> {job.institution.name}
                                             </div>
                                         )}
                                     </TableCell>
@@ -310,10 +307,12 @@ export default function AdminDashboardPage() {
                                         {new Date(job.createdAt).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell className="text-neutral-500 text-sm">
-                                        {job.area?.name || '-'}
+                                        <span className="inline-flex items-center px-2 py-1 rounded bg-neutral-100 text-neutral-600 text-xs">
+                                            {job.area?.name || '-'}
+                                        </span>
                                     </TableCell>
                                     <TableCell className="text-right pr-6">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wide border ${
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide border ${
                                             job.status === 'published' || job.status === 'open' 
                                             ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
                                             : 'bg-neutral-100 text-neutral-600 border-neutral-200'
@@ -326,9 +325,16 @@ export default function AdminDashboardPage() {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={4} className="text-center py-16 text-neutral-500">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <FileText className="h-8 w-8 text-neutral-300 mb-1" />
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="h-12 w-12 bg-neutral-100 rounded-full flex items-center justify-center">
+                                            <FileText className="h-6 w-6 text-neutral-300" />
+                                        </div>
                                         <p>Nenhuma vaga encontrada.</p>
+                                        {stats.type !== 'global' && (
+                                            <Button variant="link" asChild className="text-blue-600">
+                                                <Link href="/admin/jobs/new">Criar primeira vaga</Link>
+                                            </Button>
+                                        )}
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -338,54 +344,84 @@ export default function AdminDashboardPage() {
             </div>
         </div>
 
-        {/* --- COLUNA LATERAL: Atalhos e Dicas --- */}
+        {/* --- COLUNA LATERAL --- */}
         <div className="flex flex-col gap-6">
             
-            {/* Card de Acesso Rápido */}
+            {/* Quick Actions */}
             <div className="bg-white rounded-2xl p-6 border border-neutral-200 shadow-sm">
                 <h3 className="font-bold text-neutral-900 mb-4 text-sm uppercase tracking-wider text-neutral-400">Acesso Rápido</h3>
                 <div className="space-y-3">
                     {stats.type === 'global' ? (
                         <>
-                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200 transition-all" asChild>
-                                <Link href="/admin/institutions"><GraduationCap className="mr-3 h-4 w-4" /> Gerenciar Faculdades</Link>
+                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 bg-white hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200 transition-all group" asChild>
+                                <Link href="/admin/institutions">
+                                    <div className="p-1.5 rounded bg-orange-100 text-orange-600 mr-3 group-hover:bg-orange-200 transition-colors">
+                                        <GraduationCap className="h-4 w-4" />
+                                    </div>
+                                    Gerenciar Faculdades
+                                </Link>
                             </Button>
-                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all" asChild>
-                                <Link href="/admin/users"><Users className="mr-3 h-4 w-4" /> Base de Usuários</Link>
+                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 bg-white hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all group" asChild>
+                                <Link href="/admin/users">
+                                    <div className="p-1.5 rounded bg-blue-100 text-blue-600 mr-3 group-hover:bg-blue-200 transition-colors">
+                                        <Users className="h-4 w-4" />
+                                    </div>
+                                    Base de Usuários
+                                </Link>
                             </Button>
-                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all" asChild>
-                                <Link href="/admin/logs"><Activity className="mr-3 h-4 w-4" /> Logs de Auditoria</Link>
+                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all group" asChild>
+                                <Link href="/admin/logs">
+                                    <div className="p-1.5 rounded bg-purple-100 text-purple-600 mr-3 group-hover:bg-purple-200 transition-colors">
+                                        <Activity className="h-4 w-4" />
+                                    </div>
+                                    Logs de Auditoria
+                                </Link>
                             </Button>
                         </>
                     ) : (
                         <>
-                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all" asChild>
-                                <Link href="/admin/jobs/new"><Plus className="mr-3 h-4 w-4" /> Criar Nova Vaga</Link>
+                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 bg-white hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all group" asChild>
+                                <Link href="/admin/jobs/new">
+                                    <div className="p-1.5 rounded bg-blue-100 text-blue-600 mr-3 group-hover:bg-blue-200 transition-colors">
+                                        <Plus className="h-4 w-4" />
+                                    </div>
+                                    Criar Nova Vaga
+                                </Link>
                             </Button>
-                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all" asChild>
-                                <Link href="/admin/applications"><FileText className="mr-3 h-4 w-4" /> Processar Candidatos</Link>
+                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all group" asChild>
+                                <Link href="/admin/applications">
+                                    <div className="p-1.5 rounded bg-purple-100 text-purple-600 mr-3 group-hover:bg-purple-200 transition-colors">
+                                        <FileText className="h-4 w-4" />
+                                    </div>
+                                    Processar Candidatos
+                                </Link>
                             </Button>
-                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 hover:bg-neutral-50 hover:text-neutral-900 transition-all" asChild>
-                                <Link href="/dashboard/profile"><Users className="mr-3 h-4 w-4" /> Configurações</Link>
+                            <Button variant="outline" className="w-full justify-start h-12 border-neutral-200 bg-white hover:bg-neutral-50 hover:text-neutral-900 transition-all group" asChild>
+                                <Link href="/dashboard/profile">
+                                    <div className="p-1.5 rounded bg-neutral-100 text-neutral-600 mr-3 group-hover:bg-neutral-200 transition-colors">
+                                        <Users className="h-4 w-4" />
+                                    </div>
+                                    Meu Perfil
+                                </Link>
                             </Button>
                         </>
                     )}
                 </div>
             </div>
 
-            {/* Card de Dica/Marketing */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-lg text-white">
-                <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+            {/* Marketing Card */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg text-white border border-slate-700">
+                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl"></div>
                 <div className="relative z-10">
-                    <div className="bg-white/20 w-fit p-2 rounded-lg mb-4">
-                        <ArrowUpRight className="h-5 w-5 text-white" />
+                    <div className="bg-white/10 w-fit p-2 rounded-lg mb-4 backdrop-blur-sm border border-white/10">
+                        <ArrowUpRight className="h-5 w-5 text-blue-300" />
                     </div>
-                    <h3 className="font-bold text-lg mb-2">Melhore seu Alcance</h3>
-                    <p className="text-blue-100 text-sm leading-relaxed mb-4">
-                        Vagas com descrição detalhada e requisitos claros recebem <strong>40% mais candidaturas</strong> qualificadas.
+                    <h3 className="font-bold text-lg mb-2 text-white">Melhore seu Alcance</h3>
+                    <p className="text-slate-300 text-sm leading-relaxed mb-4">
+                        Vagas com descrição detalhada e requisitos claros recebem <strong className="text-white">40% mais candidaturas</strong> qualificadas.
                     </p>
                     {stats.type !== 'global' && (
-                        <Button size="sm" className="w-full bg-white text-blue-700 hover:bg-blue-50 border-0 font-semibold" asChild>
+                        <Button size="sm" className="w-full bg-white text-slate-900 hover:bg-blue-50 border-0 font-semibold" asChild>
                             <Link href="/admin/jobs/new">Otimizar Vagas</Link>
                         </Button>
                     )}

@@ -22,8 +22,6 @@ export class JobController {
             const data = jobCreateSchema.parse(req.body);
             const { companyName, institutionId } = req.body;
             
-            // --- CORREÇÃO ROBUSTA DE ISPUBLIC ---
-            // Verifica isPublic ou ispublic (case insensitive key fallback)
             const rawIsPublic = req.body.isPublic !== undefined ? req.body.isPublic : req.body.ispublic;
             
             let isPublic = false;
@@ -65,8 +63,6 @@ export class JobController {
 
             let finalIsPublic = isPublic;
             
-            // Regra de negócio: Se não for SuperAdmin e não definiu explicitamente como público,
-            // verifica se é uma empresa para forçar público por padrão.
             if (!isSuperAdmin && rawIsPublic === undefined) {
                 const targetRole = userRoles.find(ur => ur.institutionId === targetInstitutionId);
                 if (targetRole?.role.name === 'empresa') {
@@ -140,7 +136,6 @@ export class JobController {
             const data = jobEditSchema.parse(req.body);
             
             const { institutionId } = req.body;
-            // Tenta pegar isPublic ou ispublic
             const rawIsPublic = req.body.isPublic !== undefined ? req.body.isPublic : req.body.ispublic;
 
             const updateData: any = {};
@@ -154,7 +149,6 @@ export class JobController {
             if (data.telephone) updateData.telephone = data.telephone;
             if (req.body.companyName !== undefined) updateData.companyName = req.body.companyName;
 
-            // Tratamento robusto para conversão de string/boolean
             if (rawIsPublic !== undefined && rawIsPublic !== null) {
                 if (typeof rawIsPublic === 'boolean') {
                     updateData.isPublic = rawIsPublic;
@@ -309,7 +303,17 @@ export class JobController {
                 whereClause.categoryId = parseInt(categoryId as string);
             }
 
-            if (!isSuperAdmin) {
+            // --- MUDANÇA PRINCIPAL AQUI ---
+            if (isSuperAdmin) {
+                // Se for SuperAdmin, mas tiver uma instituição ativa selecionada,
+                // filtra apenas por ela para "simular" a visão daquela instituição.
+                // Isso permite que o Super Admin "navegue" entre os murais.
+                if (activeInstitutionId) {
+                    whereClause.institutionId = activeInstitutionId;
+                }
+                // Se não tiver (null), mostra tudo (comportamento padrão antigo)
+            } else {
+                // Comportamento normal para outros usuários
                 if (!activeInstitutionId) {
                     return res.status(400).json({ error: 'Nenhuma instituição ativa selecionada.' });
                 }
@@ -393,9 +397,7 @@ export class JobController {
             const [jobs, total] = await prisma.$transaction([
                 prisma.job.findMany({
                     where: whereFilters,
-                    include: {
-                        area: true, category: true, institution: { select: { name: true } },
-                    },
+                    include: { area: true, category: true, institution: { select: { name: true, logoUrl: true, primaryColor: true } } }, // Branding
                     orderBy: { createdAt: sort === 'asc' ? 'asc' : 'desc' },
                     skip,
                     take: limitNum
@@ -427,7 +429,7 @@ export class JobController {
                 include: {
                     area: true, category: true,
                     author: { select: { firstName: true, lastName: true } },
-                    institution: { select: { id: true, name: true } }
+                    institution: { select: { id: true, name: true, logoUrl: true, primaryColor: true } } 
                 }
             });
 

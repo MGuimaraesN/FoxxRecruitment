@@ -41,6 +41,8 @@ const initialProfileState = {
   graduationYear: '',
 };
 
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
+
 export default function ProfilePage() {
   const { user, token, fetchUserProfile } = useAuth();
 
@@ -56,7 +58,7 @@ export default function ProfilePage() {
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
 
   useEffect(() => {
-    document.title = 'Meu Perfil | Decola Vagas';
+    document.title = `Meu Perfil | ${ APP_NAME }`;
   }, []);
   
   useEffect(() => {

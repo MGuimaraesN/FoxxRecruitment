@@ -45,6 +45,7 @@ interface Application {
 }
 
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/applications`;
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
 export default function MyApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -62,7 +63,7 @@ export default function MyApplicationsPage() {
   const { token } = useAuth();
 
   useEffect(() => {
-    document.title = 'Minhas Candidaturas | Decola Vagas';
+    document.title = `Minhas Candidaturas | ${ APP_NAME }`;
     if (token) {
         fetchData();
     }

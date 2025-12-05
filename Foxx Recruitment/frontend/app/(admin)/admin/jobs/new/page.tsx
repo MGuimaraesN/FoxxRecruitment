@@ -25,7 +25,7 @@ export default function AdminNewJobPage() {
   const [categoryId, setCategoryId] = useState('');
   const [companyName, setCompanyName] = useState('');
   
-  // Valores padrão
+  // Valores padrão: Publicado e Público
   const [status, setStatus] = useState('published'); 
   const [visibility, setVisibility] = useState('public'); 
   
@@ -36,7 +36,7 @@ export default function AdminNewJobPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [createdJob, setCreatedJob] = useState<Job | null>(null); // Estado para controlar o modal de sucesso
+  const [createdJob, setCreatedJob] = useState<Job | null>(null); // Estado para o modal de sucesso
 
   const { token, user } = useAuth();
   const router = useRouter();
@@ -46,7 +46,6 @@ export default function AdminNewJobPage() {
   }, [user]);
 
   useEffect(() => {
-    document.title = 'Admin: Vagas | Decola Vagas';
     const fetchData = async () => {
       if (!token) return;
       try {
@@ -83,11 +82,15 @@ export default function AdminNewJobPage() {
           isPublic: visibility === 'public'
       };
       
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/jobs/create`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(body) });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/jobs/create`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+          body: JSON.stringify(body) 
+      });
       
       if (res.ok) { 
           const newJob = await res.json();
-          setCreatedJob(newJob); // Abre o modal
+          setCreatedJob(newJob); // Abre o modal com o link
           toast.success('Vaga criada com sucesso!'); 
       } else { 
           const data = await res.json(); 
@@ -124,7 +127,7 @@ export default function AdminNewJobPage() {
         </div>
       </div>
 
-      {/* Grid Layout Assimétrico (Igual ao Edit) */}
+      {/* Grid Layout Assimétrico (Idêntico ao Edit) */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
         
         {/* Coluna Esquerda (Formulário Principal) */}
@@ -219,7 +222,7 @@ export default function AdminNewJobPage() {
                         </Select>
                         <div className={`text-xs mt-2 p-2 rounded border leading-tight ${visibility === 'public' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-yellow-50 border-yellow-100 text-yellow-700'}`}>
                             {visibility === 'private' 
-                                ? 'Apenas usuários logados poderão ver esta vaga.' 
+                                ? 'Apenas usuários cadastrados no sistema poderão ver esta vaga.' 
                                 : 'Qualquer pessoa com o link poderá visualizar.'}
                         </div>
                     </div>
@@ -241,11 +244,14 @@ export default function AdminNewJobPage() {
                 </div>
             </div>
 
-            {/* Aviso sobre o Link (Antes de criar) */}
-            <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 text-neutral-600 text-xs leading-relaxed flex gap-3 items-start">
-                <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+            {/* Aviso sobre o Link (Estilo consistente com Edit) */}
+            <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm text-blue-800 text-xs leading-relaxed">
+                <div className="flex items-center gap-2 font-bold mb-2">
+                    <Globe className="h-4 w-4 text-blue-600" />
+                    <span>Link de Divulgação</span>
+                </div>
                 <p>
-                    O <strong>Link Público</strong> será gerado automaticamente após a criação e você poderá copiá-lo na próxima tela.
+                    O link público para compartilhamento será gerado automaticamente assim que a vaga for criada com sucesso.
                 </p>
             </div>
         </div>
@@ -270,9 +276,9 @@ export default function AdminNewJobPage() {
                     <Input 
                         readOnly 
                         value={createdJob ? `${window.location.origin}/jobs/${createdJob.id}` : ''} 
-                        className="bg-white h-9 text-xs font-mono" 
+                        className="bg-white h-9 text-xs font-mono text-neutral-600 truncate" 
                     />
-                    <Button size="icon" onClick={copyLink} className="h-9 w-9 shrink-0 bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button size="icon" onClick={copyLink} className="h-9 w-9 shrink-0 bg-blue-600 hover:bg-blue-700 text-white shadow-sm" title="Copiar Link">
                         <Copy className="h-4 w-4" />
                     </Button>
                 </div>

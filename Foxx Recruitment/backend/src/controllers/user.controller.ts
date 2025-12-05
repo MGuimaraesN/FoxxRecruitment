@@ -3,21 +3,20 @@ import type { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../database/prisma.js';
 import { sendPasswordResetEmail, sendWelcomeEmail, sendSecurityAlert } from '../services/mail.service.js';
-import { upload } from '../middlewares/upload.middleware.js'; // Mantenha importado se for usar em outros métodos
+import { upload } from '../middlewares/upload.middleware.js';
 
 export class UserController {
 
     async register(req: Request, res: Response) {
         try {
-            // Recebendo os novos campos
             const {
                 firstName, 
                 lastName, 
                 email, 
                 password, 
                 institutionId, 
-                specialization, // Novo
-                educationLevel  // Novo
+                specialization,
+                educationLevel
             } = req.body;
 
             if (!email || !password || !institutionId) {
@@ -44,7 +43,6 @@ export class UserController {
                     email: email,
                     password: hashedPassword,
                     ip: ipUser,
-                    // Salvando novos campos
                     specialization: specialization || null,
                     educationLevel: educationLevel || null
                 }});
@@ -98,9 +96,7 @@ export class UserController {
         };
     }
 
-    // ... (Mantenha os outros métodos: login, forgotPassword, resetPassword, profile, etc. inalterados)
     async login(req: Request, res: Response) {
-        // ... código original do login
          try {
             const {email, password} = req.body;
             const ipUser = req.ip || 'IP não disponível';
@@ -137,7 +133,6 @@ export class UserController {
             const secret = process.env.JWT_SECRET;
 
             if (!secret) {
-                // Se você esqueceu o .env, dará este erro
                 throw new Error('Secret não está definido!');
             }
 
@@ -172,28 +167,23 @@ export class UserController {
                 where: { email: email }
             });
 
-            // Por segurança, não informamos se o e-mail foi encontrado ou não.
-            // Apenas enviamos o e-mail se o usuário existir.
             if (user) {
                 const secret = process.env.JWT_RESET_SECRET;
                 if (!secret) {
                     throw new Error('Segredo JWT de reset não definido!');
                 }
 
-                // Cria um token JWT curto (1h) contendo o ID do usuário
                 const payload = { userId: user.id };
-                const token = jwt.sign(payload, secret, { expiresIn: '1h' }); // 1 hora
+                const token = jwt.sign(payload, secret, { expiresIn: '1h' });
 
-                // Salva o token no banco de dados
                 await prisma.user.update({
                     where: { id: user.id },
                     data: {
                         resetToken: token,
-                        resetTokenExpiry: new Date(Date.now() + 3600000) // 1 hora a partir de agora
+                        resetTokenExpiry: new Date(Date.now() + 3600000)
                     }
                 });
 
-                // Envia o e-mail
                 await sendPasswordResetEmail(user.email, token);
             }
 
@@ -220,7 +210,6 @@ export class UserController {
                 throw new Error('Segredo JWT de reset não definido!');
             }
 
-            // 1. Verifica a validade e expiração do JWT
             let payload: any;
             try {
                 payload = jwt.verify(token, secret);
@@ -228,13 +217,12 @@ export class UserController {
                 return res.status(401).json({ error: 'Token inválido ou expirado.' });
             }
 
-            // 2. Verifica se o token ainda está no banco (não foi usado)
             const user = await prisma.user.findFirst({
                 where: {
                     id: payload.userId,
                     resetToken: token,
                     resetTokenExpiry: {
-                        gte: new Date() // Verifica se a data de expiração é maior ou igual a agora
+                        gte: new Date()
                     }
                 }
             });
@@ -243,19 +231,17 @@ export class UserController {
                 return res.status(401).json({ error: 'Token inválido, expirado ou já utilizado.' });
             }
 
-            // 3. Atualiza a senha e invalida o token
             const hashedPassword = await bcrypt.hash(newPassword, 10);
 
             await prisma.user.update({
                 where: { id: user.id },
                 data: {
                     password: hashedPassword,
-                    resetToken: null,       // Invalida o token
-                    resetTokenExpiry: null  // Limpa a expiração
+                    resetToken: null,
+                    resetTokenExpiry: null
                 }
             });
 
-            // Envia alerta de segurança
             try {
                 await sendSecurityAlert(user.email);
             } catch (emailError) {
@@ -266,7 +252,6 @@ export class UserController {
 
         } catch (error) {
             console.error('Erro no resetPassword:', error);
-            // Pega erros de JWT expirado
             if (error instanceof jwt.TokenExpiredError) {
                 return res.status(401).json({ error: 'Token expirado.' });
             }
@@ -412,7 +397,6 @@ export class UserController {
                 data: { password: hashedPassword }
             });
 
-            // Envia alerta de segurança
             try {
                 await sendSecurityAlert(user.email);
             } catch (emailError) {
@@ -433,28 +417,65 @@ export class UserController {
 
             const user = await prisma.user.findUnique({
                 where: { email: userEmail },
-                include: { institutions: true }
+                include: { institutions: { include: { role: true } } }
             });
 
             if (!user) {
                 return res.status(404).json({ error: 'Usuário não encontrado' });
             }
 
-            const isMember = user.institutions.some(inst => inst.institutionId === institutionId);
+            // --- CORREÇÃO: Tratar caso de SAIR DA INSTITUIÇÃO (null) separadamente ---
+            if (!institutionId) {
+                const updatedUser = await prisma.user.update({
+                    where: { email: userEmail },
+                    data: { activeInstitutionId: null }
+                });
+                
+                const secret = process.env.JWT_SECRET;
+                if (!secret) throw new Error('Secret não está definido!');
 
-            if (!isMember) {
-                return res.status(403).json({ error: 'Usuário não pertence a esta instituição' });
+                const payload = {
+                    userId: updatedUser.id,
+                    firstName: updatedUser.firstName,
+                    lastName: updatedUser.lastName,
+                    email: updatedUser.email,
+                    activeInstitutionId: null // Explicitamente nulo
+                };
+
+                const token = jwt.sign(payload, secret, { expiresIn: '8h' });
+
+                return res.status(200).json({
+                    message: 'Desvinculado da instituição com sucesso',
+                    access_token: token
+                });
+            }
+            // ------------------------------------------------------------------------
+
+            // Se chegou aqui, institutionId é válido. Prossegue com a lógica de troca.
+            const id = Number(institutionId);
+            
+            // Verifica se o usuário é superadmin
+            const isSuperAdmin = user.institutions.some(inst => inst.role.name === 'superadmin');
+
+            if (!isSuperAdmin) {
+                const isMember = user.institutions.some(inst => inst.institutionId === id);
+                if (!isMember) {
+                    return res.status(403).json({ error: 'Usuário não pertence a esta instituição' });
+                }
+            } else {
+                const institutionExists = await prisma.institution.findUnique({ where: { id } });
+                if (!institutionExists) {
+                    return res.status(404).json({ error: 'Instituição não encontrada' });
+                }
             }
 
             const updatedUser = await prisma.user.update({
                 where: { email: userEmail },
-                data: { activeInstitutionId: institutionId }
+                data: { activeInstitutionId: id }
             });
 
             const secret = process.env.JWT_SECRET;
-            if (!secret) {
-                throw new Error('Secret não está definido!');
-            }
+            if (!secret) throw new Error('Secret não está definido!');
 
             const payload = {
                 userId: updatedUser.id,

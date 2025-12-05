@@ -14,6 +14,7 @@ enum ApplicationStatus {
   REJECTED
 }
 
+// ... (User model mantido)
 model User {
   id                  Int                   @id @default(autoincrement())
   firstName           String
@@ -35,12 +36,8 @@ model User {
   portfolioUrl        String?
   course              String?
   graduationYear      Int?
-  
-  // --- NOVOS CAMPOS PARA CANDIDATURA RÁPIDA ---
-  specialization      String?               // Ex: Front-end, Cardiologia
-  educationLevel      String?               // Ex: Doutorado, Mestre, Graduado
-  // --------------------------------------------
-
+  specialization      String?               
+  educationLevel      String?               
   resetToken          String?               @unique
   resetTokenExpiry    DateTime?
   savedJobs           SavedJob[]
@@ -48,7 +45,7 @@ model User {
   notifications       Notification[]        
 }
 
-// ... (Restante do schema permanece inalterado - Job, Application, etc.)
+// ... (Job, Application, Notification, SavedJob, Category, Area mantidos)
 model Job {
   id            Int           @id @default(autoincrement())
   authorId      Int
@@ -122,14 +119,18 @@ model Area {
   job  Job[]
 }
 
+// --- ATUALIZAÇÃO AQUI ---
 model Institution {
-  id        Int                   @id @default(autoincrement())
-  name      String                @unique
-  type      String                @default("university")
-  isActive  Boolean               @default(true)
-  jobs      Job[]
-  users     UserInstitutionRole[]
+  id           Int                   @id @default(autoincrement())
+  name         String                @unique
+  type         String                @default("university")
+  isActive     Boolean               @default(true)
+  logoUrl      String?               // Novo: URL do Logo
+  primaryColor String?               @default("#2563eb") // Novo: Cor da marca (Default Blue)
+  jobs         Job[]
+  users        UserInstitutionRole[]
 }
+// ------------------------
 
 model Role {
   id    Int                   @id @default(autoincrement())

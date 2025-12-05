@@ -25,6 +25,7 @@ interface Job {
 }
 
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/admin/jobs`;
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
 export default function AdminJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -37,7 +38,7 @@ export default function AdminJobsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    document.title = 'Admin: Vagas | Decola Vagas';
+    document.title = `Admin: Vagas | ${ APP_NAME }`;
     const fetchData = async () => {
       if (!token) return;
       setIsLoading(true);

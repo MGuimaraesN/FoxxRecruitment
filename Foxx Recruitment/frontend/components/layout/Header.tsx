@@ -19,6 +19,8 @@ interface Notification {
   createdAt: string;
 }
 
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
+
 export default function Header() {
   const { user, token } = useAuth();
   const pathname = usePathname();
@@ -76,12 +78,12 @@ export default function Header() {
     if (path.startsWith('/admin/areas')) return 'Gerenciar Áreas';
     if (path.startsWith('/admin/roles')) return 'Cargos e Permissões';
     
-    if (path === '/dashboard') return 'Mural de Vagas';
+    if (path === '/dashboard') return 'Minhas Candidaturas';
     if (path === '/dashboard/saved') return 'Vagas Salvas';
     if (path === '/dashboard/profile') return 'Meu Perfil';
     if (path.includes('/candidates')) return 'Gestão de Candidatos';
     
-    return 'Decola Vagas'; // Padrão
+    return `${ APP_NAME }`; // Padrão
   };
 
   const pageTitle = getPageTitle(pathname);

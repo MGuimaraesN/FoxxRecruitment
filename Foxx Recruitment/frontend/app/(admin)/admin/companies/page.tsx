@@ -25,6 +25,7 @@ interface Institution {
 }
 
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}`;
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Institution[]>([]);
@@ -63,7 +64,7 @@ export default function CompaniesPage() {
   };
 
   useEffect(() => {
-    document.title = 'Admin: Empresas | Decola Vagas';
+    document.title = `Admin: Empresas | ${ APP_NAME }`;
     fetchCompanies();
   }, [token]);
 

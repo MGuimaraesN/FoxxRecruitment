@@ -38,6 +38,8 @@ interface Application {
 
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/applications/manage`;
 
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
+
 export default function AdminApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [filtered, setFiltered] = useState<Application[]>([]);
@@ -66,7 +68,7 @@ export default function AdminApplicationsPage() {
   };
 
   useEffect(() => {
-    document.title = 'Admin: Candidaturas | Decola Vagas';
+    document.title = `Admin: Candidaturas | ${ APP_NAME }`;
     fetchApplications();
   }, [token]);
 

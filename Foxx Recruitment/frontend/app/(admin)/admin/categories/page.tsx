@@ -18,6 +18,7 @@ import { ClipboardList, Plus, Search, Pencil, Trash2 } from 'lucide-react';
 
 interface Category { id: number; name: string; }
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/categories`;
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -43,7 +44,7 @@ export default function CategoriesPage() {
     } catch (error) { toast.error('Erro de rede.'); } finally { setIsLoading(false); }
   };
 
-  useEffect(() => { document.title = 'Admin: Categorias | Decola Vagas'; fetchData(); }, [token]);
+  useEffect(() => { document.title = `Admin: Categorias | ${ APP_NAME }`; fetchData(); }, [token]);
   useEffect(() => { setFiltered(categories.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))); }, [search, categories]);
 
   const openModal = (cat: Category | null = null) => { setSelected(cat); setName(cat ? cat.name : ''); setIsModalOpen(true); };

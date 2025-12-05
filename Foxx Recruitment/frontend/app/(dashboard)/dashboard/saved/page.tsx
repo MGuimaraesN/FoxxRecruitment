@@ -38,7 +38,7 @@ export default function SavedJobsPage() {
   const { token } = useAuth();
 
   useEffect(() => {
-    document.title = 'Vagas Salvas | Decola Vagas';
+    document.title = 'Vagas Salvas | { APP_NAME }';
   }, []);
   
   useEffect(() => {

@@ -26,6 +26,7 @@ interface UserInstitutionRole { id: number; institution: Institution; role: Role
 interface User { id: number; firstName: string; lastName: string; email: string; institutions: UserInstitutionRole[]; }
 
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}`;
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -82,7 +83,7 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
-    document.title = 'Admin: Usuários | Decola Vagas';
+    document.title = `Admin: Usuários | ${ APP_NAME }`;
     fetchData();
   }, [token]);
 

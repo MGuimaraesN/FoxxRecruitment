@@ -39,6 +39,7 @@ export default function AdminEditJobPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   
   const { setCustomLabel } = useBreadcrumb();
+  const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
   const canEditInstitution = useMemo(() => {
     return user?.institutions.some((inst: any) => ['admin', 'superadmin'].includes(inst.role.name));
@@ -53,7 +54,7 @@ export default function AdminEditJobPage() {
   }, [id]);
 
   useEffect(() => {
-    document.title = 'Admin: Vagas | Decola Vagas';
+    document.title = `Admin: Vagas | ${ APP_NAME }`;
     if (!token || !id) return;
 
     const fetchData = async () => {
