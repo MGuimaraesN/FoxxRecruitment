@@ -77,10 +77,11 @@ export class InstitutionController {
         }
     }
 
-    // --- MÉTODO UPDATE COM SEGURANÇA REFORÇADA ---
+// --- MÉTODO UPDATE ATUALIZADO (COM SLUG E SEGURANÇA) ---
     async update(req: Request, res: Response) {
         const { id } = req.params;
-        const { name, primaryColor } = req.body;
+        // 1. Adicionamos slug e isActive na desestruturação
+        const { name, primaryColor, slug, isActive } = req.body; 
         const file = req.file;
 
         if (!id) {
@@ -88,28 +89,23 @@ export class InstitutionController {
         }
 
         try {
-            // Pega o usuário da requisição (injetado pelo AuthMiddleware)
             const requestUser = (req as any).user;
             
-            // 1. Busca as roles do usuário no banco para garantir segurança atualizada
+            // --- SEGURANÇA (MANTIDA) ---
             const userRoles = await prisma.userInstitutionRole.findMany({
                 where: { userId: requestUser.userId },
                 include: { role: true }
             });
 
-            // Verifica se é Super Admin
             const isSuperAdmin = userRoles.some(ur => ur.role.name === 'superadmin');
 
-            // 2. Lógica de Restrição: Se NÃO for Super Admin...
             if (!isSuperAdmin) {
                 const targetId = parseInt(id);
                 
-                // a) Verifica se ele está tentando editar a instituição em que está logado atualmente
                 if (requestUser.activeInstitutionId !== targetId) {
                     return res.status(403).json({ error: 'Acesso negado: Você só pode alterar sua própria instituição.' });
                 }
 
-                // b) Verifica se ele tem o cargo de 'admin' especificamente nessa instituição
                 const isAdminOfTarget = userRoles.some(ur => 
                     ur.institutionId === targetId && ur.role.name === 'admin'
                 );
@@ -118,13 +114,36 @@ export class InstitutionController {
                     return res.status(403).json({ error: 'Acesso negado: Permissões insuficientes para editar esta instituição.' });
                 }
             }
+            // ---------------------------
 
-            // 3. Prossegue com a atualização se passou nas verificações
+            // --- VALIDAÇÃO DE SLUG (NOVO) ---
+            // Se o usuário enviou um slug, verifica se já existe em OUTRA instituição
+            if (slug) {
+                const slugExists = await prisma.institution.findFirst({
+                    where: { 
+                        slug: slug, 
+                        NOT: { id: parseInt(id) } // Ignora a própria instituição
+                    }
+                });
+
+                if (slugExists) {
+                    return res.status(400).json({ error: 'Este domínio (slug) já está em uso por outra instituição.' });
+                }
+            }
+
+            // --- PREPARAÇÃO DOS DADOS ---
             const dataToUpdate: any = {};
             
             if (name) dataToUpdate.name = name;
             if (primaryColor) dataToUpdate.primaryColor = primaryColor;
+            if (slug) dataToUpdate.slug = slug; // Salva o slug
             if (file) dataToUpdate.logoUrl = `/uploads/${file.filename}`;
+            
+            // Tratamento especial para booleanos (útil se vier de FormData)
+            if (isActive !== undefined) {
+                // Se vier como string 'true'/'false' converte, senão usa o booleano direto
+                dataToUpdate.isActive = String(isActive) === 'true';
+            }
 
             const updatedInstitution = await prisma.institution.update({
                 where: { id: parseInt(id) },
@@ -200,6 +219,30 @@ export class InstitutionController {
             }
             console.error('Erro ao reativar instituição:', error);
             res.status(500).json({ error: 'Erro interno do servidor' });
+        }
+    }
+
+    // Adicione dentro da classe
+    async getBySlug(req: Request, res: Response) {
+        const { slug } = req.params;
+
+        if (!slug) {
+            return res.status(400).json({ error: 'O slug da instituição é obrigatório' });
+        }
+
+        try {
+            const institution = await prisma.institution.findUnique({
+                where: { slug },
+                include: { _count: { select: { jobs: true } } }
+            });
+
+            if (!institution) {
+                return res.status(404).json({ error: 'Instituição não encontrada' });
+            }
+
+            res.json(institution);
+        } catch (error) {
+            res.status(500).json({ error: 'Erro ao buscar instituição' });
         }
     }
 }

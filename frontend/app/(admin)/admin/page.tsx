@@ -98,9 +98,9 @@ export default function AdminDashboardPage() {
   const [recentJobs, setRecentJobs] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   const { token, user } = useAuth();
-
+  const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
   useEffect(() => {
-    document.title = 'Dashboard | Foxx Recruitment';
+    document.title = `Dashboard | ${APP_NAME}`;
     
     const fetchData = async () => {
       if (!token) return;

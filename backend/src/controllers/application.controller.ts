@@ -127,7 +127,8 @@ export class ApplicationController {
                             email: true,
                             avatarUrl: true,
                             resumeUrl: true,
-                            course: true
+                            course: true,
+                            educationLevel: true // <--- ADICIONE ESTA LINHA
                         }
                     },
                     job: {
@@ -294,6 +295,29 @@ export class ApplicationController {
         } catch (error) {
             console.error('Erro ao cancelar candidatura:', error);
             res.status(500).json({ error: 'Erro interno ao cancelar' });
+        }
+    }
+
+    // --- NOVO MÉTODO: Verificar se já aplicou ---
+    async checkApplication(req: Request, res: Response) {
+        const userId = (req as any).user?.userId;
+        const { jobId } = req.params;
+
+        if (!userId) return res.json({ hasApplied: false });
+        if (!jobId) return res.status(400).json({ error: 'Job ID é obrigatório' });
+
+        try {
+            const application = await prisma.application.findFirst({
+                where: {
+                    userId: userId,
+                    jobId: parseInt(jobId)
+                }
+            });
+
+            res.json({ hasApplied: !!application });
+        } catch (error) {
+            console.error('Erro ao verificar candidatura:', error);
+            res.status(500).json({ error: 'Erro interno' });
         }
     }
 }

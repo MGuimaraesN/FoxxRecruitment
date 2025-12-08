@@ -5,12 +5,13 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch'; // Importando Switch
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { 
     Building, Plus, Search, Trash2, User, Pencil, 
-    Eye, Ban, CheckCircle, RotateCcw, Upload, Palette
+    Eye, Ban, CheckCircle, RotateCcw, Upload, Palette, Globe, Link as LinkIcon 
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -20,9 +21,11 @@ interface Institution {
     isActive: boolean; 
     primaryColor?: string;
     logoUrl?: string;
+    slug?: string; // Adicionado Slug na interface
 }
 
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}`;
+const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000';
 
 export default function InstitutionsPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
@@ -37,6 +40,7 @@ export default function InstitutionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Estado do Formulário Atualizado
   const [formData, setFormData] = useState({
     universityName: '',
     firstName: '',
@@ -44,6 +48,8 @@ export default function InstitutionsPage() {
     email: '',
     password: '',
     primaryColor: '#2563eb',
+    slug: '',     // Novo campo
+    isActive: true // Novo campo
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
@@ -72,19 +78,34 @@ export default function InstitutionsPage() {
     setFiltered(institutions.filter(i => i.name.toLowerCase().includes(search.toLowerCase())));
   }, [search, institutions]);
 
+  // Função para formatar Slug (sem espaços, minúsculo)
+  const handleSlugChange = (value: string) => {
+    const formatted = value
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9-]/g, "");
+    setFormData(prev => ({ ...prev, slug: formatted }));
+  };
+
   const openModal = (inst: Institution | null = null) => {
     setEditingInstitution(inst);
     setLogoFile(null);
     if (inst) {
+        // Preenche dados existentes para edição
         setFormData({ 
             universityName: inst.name, 
             firstName: '', lastName: '', email: '', password: '',
-            primaryColor: inst.primaryColor || '#2563eb'
+            primaryColor: inst.primaryColor || '#2563eb',
+            slug: inst.slug || '',
+            isActive: inst.isActive
         });
     } else {
+        // Limpa para nova criação
         setFormData({ 
             universityName: '', firstName: '', lastName: '', email: '', password: '',
-            primaryColor: '#2563eb'
+            primaryColor: '#2563eb',
+            slug: '',
+            isActive: true
         });
     }
     setIsModalOpen(true);
@@ -97,10 +118,12 @@ export default function InstitutionsPage() {
 
     try {
       if (editingInstitution) {
-        // Edição com FormData para suportar arquivo
+        // --- EDIÇÃO (PUT) ---
         const data = new FormData();
         data.append('name', formData.universityName);
         data.append('primaryColor', formData.primaryColor);
+        data.append('slug', formData.slug); // Envia Slug
+        data.append('isActive', String(formData.isActive)); // Envia Status
         if (logoFile) data.append('logo', logoFile);
 
         const res = await fetch(`${API_URL}/institutions/${editingInstitution.id}`, {
@@ -118,7 +141,9 @@ export default function InstitutionsPage() {
             toast.error(err.error || 'Erro ao atualizar.');
         }
       } else {
-        // Criação simples (JSON)
+        // --- CRIAÇÃO (POST) ---
+        // Se a criação inicial não suportar slug/logo via JSON, criamos primeiro e editamos depois,
+        // ou ajustamos o backend. Assumindo criação simples por enquanto:
         const res = await fetch(`${API_URL}/admin/universities`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -126,7 +151,7 @@ export default function InstitutionsPage() {
         });
 
         if (res.ok) {
-            toast.success('Faculdade e Administrador criados!');
+            toast.success('Faculdade criada! (Edite para adicionar logo/slug)');
             setIsModalOpen(false);
             fetchData();
         } else {
@@ -138,6 +163,7 @@ export default function InstitutionsPage() {
     finally { setIsSubmitting(false); }
   };
 
+  // Funções de Desativar/Reativar Rápidas (Botões da Tabela)
   const handleDeactivate = async () => {
     if (!token || !institutionToDeactivate) return;
     try {
@@ -180,6 +206,7 @@ export default function InstitutionsPage() {
         </Button>
       </div>
 
+      {/* Busca */}
       <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-neutral-200 shadow-sm max-w-md">
         <Search className="h-4 w-4 text-neutral-400 ml-2" />
         <Input 
@@ -190,19 +217,21 @@ export default function InstitutionsPage() {
         />
       </div>
 
+      {/* Tabela */}
       <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
         <Table>
           <TableHeader className="bg-neutral-50">
             <TableRow>
               <TableHead>Instituição</TableHead>
               <TableHead>Branding</TableHead>
+              <TableHead>Slug (Domínio)</TableHead> {/* Nova Coluna */}
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-8">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-8">Carregando...</TableCell></TableRow>
             ) : filtered.length > 0 ? (
                 filtered.map((inst) => (
                 <TableRow key={inst.id} className={`hover:bg-neutral-50/50 transition-colors ${!inst.isActive ? 'opacity-70 bg-neutral-50' : ''}`}>
@@ -226,6 +255,11 @@ export default function InstitutionsPage() {
                             <div className="w-4 h-4 rounded-full border border-neutral-200 shadow-sm" style={{ backgroundColor: inst.primaryColor || '#2563eb' }} />
                             <span className="text-xs text-neutral-500 uppercase">{inst.primaryColor || '#2563eb'}</span>
                          </div>
+                    </TableCell>
+                    <TableCell>
+                        {inst.slug ? (
+                            <span className="text-xs font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded">{inst.slug}.{ROOT_DOMAIN}</span>
+                        ) : <span className="text-xs text-neutral-400">-</span>}
                     </TableCell>
                     <TableCell>
                         {inst.isActive ? (
@@ -258,22 +292,27 @@ export default function InstitutionsPage() {
                 </TableRow>
                 ))
             ) : (
-                <TableRow><TableCell colSpan={4} className="text-center py-12 text-neutral-500">Nenhuma faculdade encontrada.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-12 text-neutral-500">Nenhuma faculdade encontrada.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </div>
 
+      {/* MODAL DE EDIÇÃO / CRIAÇÃO */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-lg">
             <DialogHeader>
                 <DialogTitle>{editingInstitution ? 'Editar Branding e Dados' : 'Nova Faculdade'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="py-2 space-y-4">
-                <div className="space-y-2 p-4 bg-neutral-50 rounded-lg border border-neutral-100">
+                
+                {/* Dados Principais */}
+                <div className="space-y-4 p-4 bg-neutral-50 rounded-lg border border-neutral-100">
                     <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-2">
                         <Building className="h-4 w-4 text-orange-600" /> Instituição
                     </h3>
+                    
+                    {/* Nome */}
                     <div>
                         <label className="text-xs font-medium text-neutral-500 mb-1 block">Nome da Faculdade</label>
                         <Input 
@@ -285,42 +324,81 @@ export default function InstitutionsPage() {
                         />
                     </div>
                     
-                    {/* Branding Fields (Only in Edit Mode for now for simplicity, or can be both) */}
+                    {/* Campos Extras (Apenas Edição) */}
                     {editingInstitution && (
-                        <div className="grid grid-cols-2 gap-4 pt-2">
+                        <>
+                            {/* SLUG */}
                             <div>
                                 <label className="text-xs font-medium text-neutral-500 mb-1 flex items-center gap-1">
-                                    <Palette className="h-3 w-3" /> Cor Primária
+                                    <Globe className="h-3 w-3" /> Domínio Personalizado (Slug)
                                 </label>
-                                <div className="flex gap-2">
+                                <div className="relative">
+                                    <LinkIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-neutral-400" />
                                     <Input 
-                                        type="color" 
-                                        value={formData.primaryColor} 
-                                        onChange={e => setFormData({...formData, primaryColor: e.target.value})} 
-                                        className="w-10 h-9 p-1 bg-white cursor-pointer"
+                                        value={formData.slug} 
+                                        onChange={e => handleSlugChange(e.target.value)} 
+                                        className="pl-8 bg-white font-mono text-sm"
+                                        placeholder="ex: usp"
                                     />
+                                </div>
+                                {formData.slug && (
+                                    <p className="text-[10px] text-green-600 mt-1 pl-1">
+                                        Preview: {formData.slug}.{ROOT_DOMAIN}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Branding */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-medium text-neutral-500 mb-1 flex items-center gap-1">
+                                        <Palette className="h-3 w-3" /> Cor Primária
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <Input 
+                                            type="color" 
+                                            value={formData.primaryColor} 
+                                            onChange={e => setFormData({...formData, primaryColor: e.target.value})} 
+                                            className="w-10 h-9 p-1 bg-white cursor-pointer"
+                                        />
+                                        <Input 
+                                            value={formData.primaryColor} 
+                                            onChange={e => setFormData({...formData, primaryColor: e.target.value})} 
+                                            className="bg-white text-xs font-mono uppercase"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-medium text-neutral-500 mb-1 flex items-center gap-1">
+                                        <Upload className="h-3 w-3" /> Logo
+                                    </label>
                                     <Input 
-                                        value={formData.primaryColor} 
-                                        onChange={e => setFormData({...formData, primaryColor: e.target.value})} 
-                                        className="bg-white text-xs font-mono uppercase"
+                                        type="file" 
+                                        accept="image/*"
+                                        onChange={e => setLogoFile(e.target.files?.[0] || null)}
+                                        className="bg-white text-xs cursor-pointer file:text-blue-600 file:font-semibold"
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="text-xs font-medium text-neutral-500 mb-1 flex items-center gap-1">
-                                    <Upload className="h-3 w-3" /> Logo
-                                </label>
-                                <Input 
-                                    type="file" 
-                                    accept="image/*"
-                                    onChange={e => setLogoFile(e.target.files?.[0] || null)}
-                                    className="bg-white text-xs cursor-pointer file:text-blue-600 file:font-semibold"
-                                />
+
+                            {/* Status */}
+                            <div className="flex items-center justify-between bg-white p-3 rounded border border-neutral-200">
+                                <span className="text-xs font-medium text-neutral-700">Status do Portal</span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-xs ${formData.isActive ? 'text-green-600' : 'text-red-500'}`}>
+                                        {formData.isActive ? 'Ativo' : 'Inativo'}
+                                    </span>
+                                    <Switch 
+                                        checked={formData.isActive} 
+                                        onCheckedChange={(checked) => setFormData(prev => ({...prev, isActive: checked}))} 
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        </>
                     )}
                 </div>
 
+                {/* Campos de Admin Inicial (Apenas na Criação) */}
                 {!editingInstitution && (
                     <div className="space-y-3 p-4 bg-neutral-50 rounded-lg border border-neutral-100">
                         <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-2">
@@ -345,7 +423,7 @@ export default function InstitutionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Alert Dialogs (Deactivate/Reactivate) - Same as before */}
+      {/* Alertas de Desativação / Reativação */}
       <AlertDialog open={!!institutionToDeactivate} onOpenChange={(o) => !o && setInstitutionToDeactivate(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>

@@ -75,8 +75,8 @@ export default function LandingPage() {
   // Data States
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
-  const [totalJobs, setTotalJobs] = useState(0); // Contagem real
-  const [partners, setPartners] = useState<Institution[]>([]); // Instituições reais
+  const [totalJobs, setTotalJobs] = useState(0); 
+  const [partners, setPartners] = useState<Institution[]>([]); 
 
   // Filter States
   const [filters, setFilters] = useState({ search: '', areaId: '', categoryId: '' });
@@ -90,11 +90,13 @@ export default function LandingPage() {
   const { login, user, loading } = useAuth();
   const router = useRouter();
 
-  // Redirect if logged
+  // --- CORREÇÃO: Redirecionamento seguro ---
+  // Só redireciona se o carregamento terminou E temos um usuário válido.
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-    if (token || user) router.push('/dashboard');
-  }, [user, router]);
+      if (!loading && user) {
+          router.push('/dashboard');
+      }
+  }, [user, loading, router]);
 
   // Init Title
   useEffect(() => {
@@ -108,7 +110,6 @@ export default function LandingPage() {
       
       setLoadingJobs(true);
       try {
-        // 1. Buscar Vagas (Com filtros)
         const query = new URLSearchParams({
           search: filters.search,
           areaId: filters.areaId,
@@ -123,7 +124,6 @@ export default function LandingPage() {
           setTotalJobs(json.meta?.total || 0);
         }
 
-        // 2. Buscar Metadados (Apenas se ainda não carregou)
         if (areas.length === 0) {
              const [areaRes, catRes, instRes] = await Promise.all([
                 fetch(`${apiUrl}/areas/public`),
@@ -146,7 +146,8 @@ export default function LandingPage() {
     fetchData();
   }, [filters, areas.length]);
 
-  if (loading || user) {
+  // Loader de inicialização para evitar piscada da tela de login
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#020617]">
         <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
@@ -187,7 +188,6 @@ export default function LandingPage() {
         {/* --- HERO SECTION --- */}
         <section className="relative w-full py-24 md:py-32 lg:py-40 overflow-hidden flex flex-col items-center justify-center text-center px-4">
             
-            {/* Backgrounds */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-blue-600/15 rounded-[100%] blur-[120px] -z-10 pointer-events-none" />
             <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-purple-600/10 rounded-full blur-[130px] -z-10 pointer-events-none" />
             <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
@@ -210,7 +210,7 @@ export default function LandingPage() {
             
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
                 <Button asChild size="lg" className="h-14 px-8 text-lg bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)] transition-all hover:scale-105">
-                    <Link href="/register">
+                    <Link href="#vagas">
                         Ver Vagas Agora
                         <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
@@ -225,7 +225,6 @@ export default function LandingPage() {
                 </Button>
             </div>
 
-            {/* Live Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-16 mt-20 pt-10 border-t border-white/5">
                 <StatItem value={totalJobs > 0 ? `${totalJobs}+` : "Carregando..."} label="Vagas Ativas" />
                 <StatItem value={partners.length > 0 ? `${partners.length}` : "Diversas"} label="Instituições" />
@@ -234,7 +233,6 @@ export default function LandingPage() {
             </div>
         </section>
 
-        {/* --- PARCEIROS (NOVO) --- */}
         {partners.length > 0 && (
             <section className="py-10 border-y border-white/5 bg-slate-900/30 overflow-hidden">
                 <div className="container mx-auto px-4">
@@ -261,7 +259,6 @@ export default function LandingPage() {
             </section>
         )}
 
-        {/* --- LISTAGEM DE VAGAS --- */}
         <section id="vagas" className="py-20 md:py-32 relative">
           <div className="container mx-auto max-w-7xl px-4">
             
@@ -270,11 +267,9 @@ export default function LandingPage() {
                 <p className="text-slate-400">Filtre, encontre e decole na sua carreira.</p>
             </div>
 
-            {/* Filtros Flutuantes */}
             <div className="sticky top-20 z-30 mb-12 -mx-4 md:mx-auto max-w-5xl">
               <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl shadow-black/50 mx-4 ring-1 ring-white/5">
                 <div className="flex flex-col md:flex-row gap-2">
-                  
                   <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 h-5 w-5" />
                     <Input
@@ -284,7 +279,6 @@ export default function LandingPage() {
                         className="w-full bg-transparent border-0 text-white placeholder:text-slate-500 focus-visible:ring-0 h-12 pl-12 rounded-xl"
                     />
                   </div>
-
                   <div className="flex gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 px-1 md:px-0 scrollbar-hide">
                     <Select value={filters.areaId} onValueChange={(value) => setFilters(prev => ({ ...prev, areaId: value === 'all' ? '' : value }))}>
                         <SelectTrigger className="w-[160px] bg-white/5 border-0 text-slate-300 h-12 rounded-xl hover:bg-white/10 transition-all">
@@ -295,7 +289,6 @@ export default function LandingPage() {
                             {areas.map(area => <SelectItem key={area.id} value={String(area.id)}>{area.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
-
                     <Select value={filters.categoryId} onValueChange={(value) => setFilters(prev => ({ ...prev, categoryId: value === 'all' ? '' : value }))}>
                         <SelectTrigger className="w-[160px] bg-white/5 border-0 text-slate-300 h-12 rounded-xl hover:bg-white/10 transition-all">
                             <SelectValue placeholder="Nível" />
@@ -305,7 +298,6 @@ export default function LandingPage() {
                             {categories.map(cat => <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    
                     <Button className="h-12 px-6 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg">
                         Buscar
                     </Button>
@@ -314,7 +306,6 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Grid de Cards */}
             {loadingJobs ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-500">
                 <Loader2 className="h-10 w-10 animate-spin mb-4 text-blue-500" />
@@ -335,18 +326,9 @@ export default function LandingPage() {
                   <p className="text-slate-400 mt-2">Tente ajustar seus filtros de busca.</p>
               </div>
             )}
-
-            {jobs.length > 0 && (
-                <div className="mt-16 text-center">
-                     <Button asChild size="lg" variant="secondary" className="rounded-full px-8">
-                        <Link href="/register">Cadastre-se para ver tudo</Link>
-                    </Button>
-                </div>
-            )}
           </div>
         </section>
 
-        {/* --- FEATURES --- */}
         <section className="py-24 bg-slate-900 border-t border-white/5 relative overflow-hidden">
            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1),transparent_70%)]" />
            <div className="container mx-auto max-w-6xl px-4 relative z-10">
@@ -394,7 +376,7 @@ export default function LandingPage() {
   );
 }
 
-// --- COMPONENTES ---
+// --- COMPONENTES AUXILIARES ---
 
 function StatItem({ value, label }: { value: string | number, label: string }) {
     return (
@@ -413,13 +395,10 @@ function JobCard({ job }: { job: Job }) {
     return 'Recente';
   };
 
-  // Branding Color (Fallback to blue if undefined)
   const accentColor = job.institution.primaryColor || '#2563eb';
 
   return (
     <div className="group relative bg-[#0f172a] rounded-2xl border border-white/5 hover:border-white/10 p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50 flex flex-col h-full">
-      
-      {/* Top: Institution Info */}
       <div className="flex justify-between items-start mb-4">
          <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-white p-1 flex items-center justify-center overflow-hidden shadow-sm">
@@ -445,7 +424,6 @@ function JobCard({ job }: { job: Job }) {
          </div>
       </div>
 
-      {/* Middle: Job Title & Meta */}
       <div className="flex-1 mb-6">
         <h3 className="text-lg font-bold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
             {job.title}
@@ -462,14 +440,13 @@ function JobCard({ job }: { job: Job }) {
         </div>
       </div>
 
-      {/* Bottom: Footer */}
       <div className="pt-4 border-t border-white/5 flex items-center justify-between mt-auto">
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <Clock className="h-3.5 w-3.5" />
             <span>{timeAgo(job.createdAt)}</span>
         </div>
-        <Link href="/register" className="text-xs font-medium text-blue-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-            Candidatar-se <ArrowRight className="h-3 w-3" />
+        <Link href={`/jobs/${job.id}`} className="text-xs font-medium text-blue-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 hover:text-blue-300 cursor-pointer">
+            Ver Vaga <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
     </div>
@@ -488,7 +465,7 @@ function FeatureCard({ icon: Icon, title, description }: { icon: any, title: str
   );
 }
 
-// --- LOGIN MODAL (Code maintained for functionality) ---
+// Modal de Login
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -496,61 +473,17 @@ interface LoginModalProps {
   router: any;
 }
 function LoginModal({ isOpen, onClose, login, router }: LoginModalProps) {
-  // ... (Lógica de login inalterada, apenas replicando para manter o arquivo funcional)
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<'login' | 'forgot' | null>(null);
-  const isLoading = loadingAction !== null;
-  const [isResetSent, setIsResetSent] = useState(false);
-
-  const LOGIN_API_URL = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
-  const FORGOT_PASSWORD_API_URL = `${process.env.NEXT_PUBLIC_API_URL}/auth/forgot-password`;
-  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      toast.error('Por favor, digite seu e-mail no campo acima primeiro.');
-      setError('Digite seu e-mail no campo acima para recuperar a senha.');
-      return;
-    }
-    if (!EMAIL_REGEX.test(email)) {
-      toast.error('Por favor, digite um e-mail válido.');
-      setError('Formato de e-mail inválido.');
-      return;
-    }
-    setLoadingAction('forgot');
-    setError(null);
-    try {
-      const res = await fetch(FORGOT_PASSWORD_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setIsResetSent(true);
-        toast.success('Link de recuperação enviado com sucesso!');
-      } else {
-        const errorMsg = data.error || 'Erro ao enviar link de recuperação.';
-        setError(errorMsg);
-        toast.error(errorMsg);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error('Erro de rede ao tentar recuperar senha.');
-    } finally {
-      setLoadingAction(null);
-    }
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLoginSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoadingAction('login');
+    setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(LOGIN_API_URL, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -559,73 +492,34 @@ function LoginModal({ isOpen, onClose, login, router }: LoginModalProps) {
         const data = await res.json();
         toast.success('Login realizado!');
         await login(data.access_token);
-        router.push('/dashboard');
+        // O redirecionamento é tratado pelo login() ou pelo useEffect da página
       } else {
         const data = await res.json();
         setError(data.error || 'Falha no login.');
         toast.error(data.error || 'Falha no login.');
       }
-    } catch (err) { setError('Erro de conexão.'); toast.error('Erro de conexão.'); }
-    finally { setLoadingAction(null); }
-  };
-
-  const resetState = () => {
-    setIsResetSent(false);
-    setError(null);
-    setEmail('');
-    setPassword('');
-    setLoadingAction(null);
-  };
-
-  const getButtonText = () => {
-    if (loadingAction === 'forgot') return 'Enviando link...';
-    if (loadingAction === 'login') return 'Entrando...';
-    return 'Entrar';
+    } catch (err) {
+      setError('Erro de conexão.');
+      toast.error('Erro de conexão.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if(!open) resetState(); onClose(); }}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-[#18181b] border-slate-800 text-slate-50">
-        {isResetSent ? (
-          <div className="animate-in fade-in zoom-in duration-300 text-left">
-            <h3 className="text-lg font-bold text-emerald-400 mb-2 mt-4">E-mail enviado!</h3>
-            <p className="text-sm text-emerald-200 mb-6 leading-relaxed">
-              Se um usuário com este e-mail existir, um link de redefinição foi enviado.
-            </p>
-            <Button 
-              className="bg-emerald-600 text-white hover:bg-emerald-500 font-medium w-fit px-6 rounded-full"
-              onClick={() => setIsResetSent(false)}
-            >
-              Voltar para o Login
+        <DialogHeader><DialogTitle className="text-center text-white">Login</DialogTitle></DialogHeader>
+        <form onSubmit={handleLoginSubmit} className="space-y-4 mt-2">
+            <Input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" required className="bg-slate-900 border-slate-700 text-white" />
+            <Input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Senha" required className="bg-slate-900 border-slate-700 text-white" />
+            
+            {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+            
+            <Button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-500 text-white">
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Entrar'}
             </Button>
-          </div>
-        ) : (
-          <>
-            <DialogHeader><DialogTitle className="text-center text-white">Login</DialogTitle></DialogHeader>
-            <form onSubmit={handleLoginSubmit} className="space-y-4 mt-2">
-                <Input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" required className="bg-slate-900 border-slate-700 text-white" />
-                <Input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Senha" required className="bg-slate-900 border-slate-700 text-white" />
-                
-                <div className="flex justify-end">
-                  <button type="button" onClick={handleForgotPassword} className="text-xs font-medium text-blue-400 hover:text-blue-300 hover:underline disabled:opacity-50" disabled={isLoading}>
-                    Esqueceu sua senha?
-                  </button>
-                </div>
-
-                {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-                
-                <Button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-500 text-white">
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : getButtonText()}
-                </Button>
-            </form>
-            <p className="mt-4 text-center text-sm text-slate-500">
-              Não tem uma conta?{' '}
-              <Link href="/register" className="font-semibold text-blue-400 hover:text-blue-300 hover:underline" onClick={onClose}>
-                Cadastre-se
-              </Link>
-            </p>
-          </>
-        )}
+        </form>
       </DialogContent>
     </Dialog>
   );

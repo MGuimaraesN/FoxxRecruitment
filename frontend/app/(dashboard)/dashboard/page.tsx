@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { 
   Briefcase, MapPin, Calendar, Building, 
   ChevronRight, Loader2, Clock, CheckCircle2, XCircle, FileText,
-  Search, Filter, TrendingUp
+  Search, Filter, TrendingUp, School, BookOpen, GraduationCap 
 } from 'lucide-react';
 import { JobDetailModal } from '@/components/JobDetailModal';
 import { toast } from 'sonner';
@@ -79,11 +79,12 @@ export default function DashboardPage() {
   // Hooks para o Modal
   const [savedJobIds, setSavedJobIds] = useState<Set<number>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
+  const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
-  const { token, user } = useAuth();
+  const { token } = useAuth();
 
   useEffect(() => { 
-      document.title = 'Minhas Candidaturas | FoxxRecruitment'; 
+      document.title = `Painel do Aluno | ${APP_NAME}`; 
   }, []);
 
   // Fetch Candidaturas
@@ -104,7 +105,7 @@ export default function DashboardPage() {
                 setApplications(data);
                 setFilteredApps(data);
             } else {
-                toast.error('Não foi possível carregar suas candidaturas.');
+                toast.error('Não foi possível carregar suas inscrições.');
             }
 
             const savedRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/saved-jobs/my-saved/ids`, { 
@@ -165,33 +166,34 @@ export default function DashboardPage() {
             const newSet = new Set(savedJobIds);
             isSaved ? newSet.delete(jobId) : newSet.add(jobId);
             setSavedJobIds(newSet);
-            toast.success(isSaved ? 'Removido dos salvos.' : 'Vaga salva!');
+            toast.success(isSaved ? 'Removido dos favoritos.' : 'Edital salvo!');
         }
     } catch { toast.error('Erro ao salvar.'); } 
     finally { setIsSaving(false); }
   };
 
+  // Configuração de Status Acadêmicos
   const getStatusConfig = (status: string) => {
       switch (status) {
           case 'ACCEPTED':
-              return { label: 'Aprovado', color: 'bg-green-50 text-green-700 border-green-200', icon: CheckCircle2 };
+              return { label: 'Selecionado', color: 'bg-green-50 text-green-700 border-green-200', icon: GraduationCap };
           case 'REJECTED':
-              return { label: 'Não Selecionado', color: 'bg-red-50 text-red-700 border-red-200', icon: XCircle };
+              return { label: 'Indeferido', color: 'bg-red-50 text-red-700 border-red-200', icon: XCircle };
           case 'REVIEWING':
-              return { label: 'Em Análise', color: 'bg-blue-50 text-blue-700 border-blue-200', icon: FileText };
+              return { label: 'Em Análise', color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Search };
           default:
-              return { label: 'Pendente', color: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: Clock };
+              return { label: 'Inscrito', color: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: Clock };
       }
   };
 
   return (
     <div className="container mx-auto pb-20 max-w-6xl space-y-8">
       
-      {/* Header */}
+      {/* Header Acadêmico */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
-            <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Minhas Candidaturas</h1>
-            <p className="text-neutral-500 mt-1">Gerencie seu progresso nos processos seletivos.</p>
+            <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Meus Processos Seletivos</h1>
+            <p className="text-neutral-500 mt-1">Acompanhe o andamento das suas inscrições em editais e oportunidades.</p>
         </div>
       </div>
 
@@ -199,32 +201,32 @@ export default function DashboardPage() {
       {!isLoading && applications.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard 
-                  title="Total Enviado" 
+                  title="Inscrições" 
                   value={stats.total} 
-                  icon={Briefcase} 
+                  icon={FileText} 
                   color="blue" 
-                  description="Candidaturas ativas"
+                  description="Processos ativos"
               />
               <StatCard 
-                  title="Em Análise" 
+                  title="Em Avaliação" 
                   value={stats.reviewing} 
-                  icon={TrendingUp} 
+                  icon={Search} 
                   color="purple" 
-                  description="Visualizadas pelo recrutador"
+                  description="Análise da banca"
               />
                <StatCard 
-                  title="Pendentes" 
+                  title="Submetidos" 
                   value={stats.pending} 
                   icon={Clock} 
                   color="orange" 
                   description="Aguardando revisão"
               />
               <StatCard 
-                  title="Aprovados" 
+                  title="Selecionados" 
                   value={stats.accepted} 
                   icon={CheckCircle2} 
                   color="green" 
-                  description="Chamados para entrevista"
+                  description="Aprovado no processo"
               />
           </div>
       )}
@@ -234,7 +236,7 @@ export default function DashboardPage() {
          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
             <Input 
-                placeholder="Buscar vaga ou empresa..." 
+                placeholder="Buscar por edital ou instituição..." 
                 className="pl-9 bg-neutral-50 border-neutral-200"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -245,21 +247,21 @@ export default function DashboardPage() {
                 <SelectTrigger className="bg-neutral-50 border-neutral-200">
                     <div className="flex items-center gap-2 text-neutral-600">
                         <Filter className="h-4 w-4" />
-                        <SelectValue placeholder="Status" />
+                        <SelectValue placeholder="Situação" />
                     </div>
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="ALL">Todos</SelectItem>
-                    <SelectItem value="PENDING">Pendentes</SelectItem>
+                    <SelectItem value="ALL">Todas</SelectItem>
+                    <SelectItem value="PENDING">Submetidas</SelectItem>
                     <SelectItem value="REVIEWING">Em Análise</SelectItem>
-                    <SelectItem value="ACCEPTED">Aprovados</SelectItem>
-                    <SelectItem value="REJECTED">Encerrados</SelectItem>
+                    <SelectItem value="ACCEPTED">Selecionadas</SelectItem>
+                    <SelectItem value="REJECTED">Indeferidas</SelectItem>
                 </SelectContent>
             </Select>
          </div>
       </div>
 
-      {/* Lista de Candidaturas */}
+      {/* Lista de Inscrições */}
       {isLoading ? (
         <div className="flex flex-col gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -277,9 +279,9 @@ export default function DashboardPage() {
                     key={app.id} 
                     className="group bg-white rounded-xl border border-neutral-200 p-6 hover:shadow-md transition-all duration-200 relative flex flex-col md:flex-row items-start md:items-center gap-6"
                 >
-                    {/* Icone da Vaga/Empresa */}
+                    {/* Icone Acadêmico */}
                     <div className="hidden md:flex h-14 w-14 rounded-lg bg-neutral-100 items-center justify-center shrink-0 text-neutral-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                        <Building className="h-7 w-7" />
+                        <School className="h-7 w-7" />
                     </div>
 
                     <div className="flex-1 min-w-0 w-full">
@@ -290,7 +292,7 @@ export default function DashboardPage() {
                             </span>
                             <span className="text-xs text-neutral-400 flex items-center">
                                 <Calendar className="w-3 h-3 mr-1" />
-                                {new Date(app.createdAt).toLocaleDateString('pt-BR')}
+                                Submetido em {new Date(app.createdAt).toLocaleDateString('pt-BR')}
                             </span>
                         </div>
 
@@ -310,7 +312,7 @@ export default function DashboardPage() {
                             </span>
                             <span className="hidden md:inline text-neutral-300">•</span>
                             <span className="flex items-center gap-1">
-                                <Briefcase className="h-3.5 w-3.5" />
+                                <BookOpen className="h-3.5 w-3.5" />
                                 {app.job.category.name}
                             </span>
                         </div>
@@ -322,7 +324,7 @@ export default function DashboardPage() {
                             onClick={() => setSelectedJob(app.job)}
                             className="text-neutral-500 hover:text-blue-600 hover:bg-blue-50 w-full md:w-auto justify-center md:justify-start"
                         >
-                            Ver Detalhes <ChevronRight className="w-4 h-4 ml-1" />
+                            Ver Edital <ChevronRight className="w-4 h-4 ml-1" />
                         </Button>
                     </div>
                 </div>
@@ -334,11 +336,11 @@ export default function DashboardPage() {
             <div className="bg-neutral-50 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <FileText className="h-10 w-10 text-neutral-300" />
             </div>
-            <h3 className="text-xl font-semibold text-neutral-900">Nenhuma candidatura encontrada</h3>
+            <h3 className="text-xl font-semibold text-neutral-900">Nenhuma inscrição encontrada</h3>
             <p className="text-neutral-500 mt-2 mb-8 max-w-md mx-auto">
                 {searchTerm || statusFilter !== 'ALL' 
-                    ? 'Tente ajustar os filtros para encontrar o que procura.' 
-                    : 'Você ainda não se candidatou a nenhuma vaga.'}
+                    ? 'Tente ajustar os filtros para encontrar o processo seletivo.' 
+                    : 'Você ainda não se inscreveu em nenhum processo seletivo.'}
             </p>
             {(searchTerm || statusFilter !== 'ALL') && (
                 <Button variant="outline" onClick={() => { setSearchTerm(''); setStatusFilter('ALL'); }}>

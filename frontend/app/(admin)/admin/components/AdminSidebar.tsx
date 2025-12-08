@@ -21,6 +21,8 @@ export default function AdminSidebar({ navLinks }: AdminSidebarProps) {
   const pathname = usePathname();
   const { logout } = useAuth();
   const router = useRouter();
+  const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
+
 
   const handleLogout = () => {
     logout();
@@ -30,14 +32,14 @@ export default function AdminSidebar({ navLinks }: AdminSidebarProps) {
   return (
     <aside className="w-72 flex-shrink-0 bg-[#0f172a] border-r border-white/10 flex flex-col h-screen sticky top-0 transition-all duration-300">
       
-      {/* --- CABEÇALHO (Rebranding Foxx) --- */}
+      {/* --- CABEÇALHO (Rebranding) --- */}
       <div className="p-6 pb-4">
         <div className="flex items-center gap-3 mb-6">
           <div className="h-10 w-10 rounded-xl bg-orange-600 flex items-center justify-center shadow-lg shadow-orange-900/20 border border-orange-500/20">
             <GraduationCap className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white leading-tight tracking-tight">Foxx Admin</h1>
+            <h1 className="text-lg font-bold text-white leading-tight tracking-tight">{APP_NAME} Admin</h1>
             <p className="text-xs text-slate-400 font-medium">Gestão SaaS</p>
           </div>
         </div>

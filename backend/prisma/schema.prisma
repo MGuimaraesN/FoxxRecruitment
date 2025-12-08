@@ -127,6 +127,7 @@ model Institution {
   isActive     Boolean               @default(true)
   logoUrl      String?               // Novo: URL do Logo
   primaryColor String?               @default("#2563eb") // Novo: Cor da marca (Default Blue)
+  slug         String?  @unique // Ex: 'usp', 'unicamp' (Adicione isso)
   jobs         Job[]
   users        UserInstitutionRole[]
 }

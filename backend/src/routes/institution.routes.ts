@@ -26,6 +26,10 @@ institutionRoutes.get(
     institutionController.getAll
 );
 institutionRoutes.get(
+    '/public/slug/:slug', 
+    institutionController.getBySlug
+);
+institutionRoutes.get(
     '/:id',
     authMiddleware.auth,
     rbacMiddleware.checkRole(['superadmin']),
@@ -52,5 +56,6 @@ institutionRoutes.patch(
     rbacMiddleware.checkRole(['superadmin']), // Apenas Super Admin
     institutionController.reactivate
 );
+
 
 export { institutionRoutes };

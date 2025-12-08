@@ -9,9 +9,14 @@ const authMiddleware = new AuthMiddleware();
 const rbacMiddleware = new RbacMiddleware(); // Instanciar
 
 applicationRoutes.post(
-    '/apply',
+    '/',
     authMiddleware.auth,
     applicationController.apply
+);
+applicationRoutes.get(
+    '/check/:jobId',
+    authMiddleware.auth,
+    applicationController.checkApplication
 );
 applicationRoutes.get(
     '/my-applications',

@@ -13,12 +13,11 @@ import { Toaster } from 'sonner';
 import Sidebar, { NavLink } from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 
-// --- ATUALIZAÇÃO: Apenas Candidaturas e Perfil ---
 const allNavLinks: NavLink[] = [
   { 
     href: '/dashboard', 
     label: 'Minhas Candidaturas', 
-    icon: FileText, // Ícone de arquivo/status
+    icon: FileText, 
     roles: ['student', 'professor', 'coordenador', 'empresa', 'admin', 'superadmin'] 
   },
   { 
@@ -32,8 +31,10 @@ const allNavLinks: NavLink[] = [
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading, getActiveRole } = useAuth();
   const router = useRouter();
+  const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'FoxxRecruitment';
 
   useEffect(() => {
+    // Apenas redireciona se tiver terminado de carregar e NÃO houver usuário
     if (!loading && !user) {
       router.push('/');
     }
@@ -60,7 +61,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen w-full bg-white">
       <Sidebar
-        title="FoxxRecruitment"
+        title={APP_NAME}
         icon={Building}
         navLinks={filteredLinks} 
       />

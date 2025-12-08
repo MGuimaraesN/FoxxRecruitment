@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table';
 import { 
   FileText, CheckCircle, XCircle, Search, 
-  Loader2, User, Eye, Filter 
+  Loader2, User, Eye, Filter, GraduationCap 
 } from 'lucide-react';
 
 interface Application {
@@ -29,6 +29,7 @@ interface Application {
     avatarUrl: string | null;
     resumeUrl: string | null;
     course: string | null;
+    educationLevel?: string | null; // <--- ADICIONADO NO TYPE
   };
   job: {
     title: string;
@@ -37,14 +38,17 @@ interface Application {
 }
 
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/applications/manage`;
-
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
 export default function AdminApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [filtered, setFiltered] = useState<Application[]>([]);
+  
+  // Filtros
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [specFilter, setSpecFilter] = useState(''); // <--- NOVO STATE PARA ESPECIALIZAÇÃO
+  
   const [isLoading, setIsLoading] = useState(true);
   const { token } = useAuth();
 
@@ -72,10 +76,11 @@ export default function AdminApplicationsPage() {
     fetchApplications();
   }, [token]);
 
-  // Filtragem local
+  // Lógica de Filtragem Atualizada
   useEffect(() => {
     let result = applications;
 
+    // 1. Busca Geral (Nome ou Vaga)
     if (search) {
       const lower = search.toLowerCase();
       result = result.filter(app => 
@@ -85,14 +90,25 @@ export default function AdminApplicationsPage() {
       );
     }
 
+    // 2. Filtro de Status
     if (statusFilter !== 'ALL') {
       result = result.filter(app => app.status === statusFilter);
     }
 
+    // 3. Novo Filtro de Especialização
+    if (specFilter) {
+      const lowerSpec = specFilter.toLowerCase();
+      result = result.filter(app => 
+        app.user.educationLevel && 
+        app.user.educationLevel.toLowerCase().includes(lowerSpec)
+      );
+    }
+
     setFiltered(result);
-  }, [search, statusFilter, applications]);
+  }, [search, statusFilter, specFilter, applications]); // Adicionado specFilter nas dependências
 
   const handleStatusChange = async (id: number, newStatus: string) => {
+    // ... (manter código existente de status change)
     try {
       const res = await fetch(`${API_URL}/${id}/status`, {
         method: 'PATCH',
@@ -105,7 +121,6 @@ export default function AdminApplicationsPage() {
 
       if (res.ok) {
         toast.success(`Status atualizado para ${newStatus}`);
-        // Atualização otimista
         setApplications(prev => prev.map(app => 
           app.id === id ? { ...app, status: newStatus as any } : app
         ));
@@ -118,6 +133,7 @@ export default function AdminApplicationsPage() {
   };
 
   const getStatusBadge = (status: string) => {
+     // ... (manter código existente do badge)
     const styles = {
       PENDING: "bg-yellow-50 text-yellow-700 border-yellow-200",
       REVIEWING: "bg-blue-50 text-blue-700 border-blue-200",
@@ -143,11 +159,11 @@ export default function AdminApplicationsPage() {
         </div>
       </div>
 
-      {/* --- BARRA DE FILTROS PADRONIZADA --- */}
+      {/* --- BARRA DE FILTROS --- */}
       <div className="bg-white p-4 rounded-lg border border-neutral-200 shadow-sm mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           
-          {/* Busca (Input Composto) */}
+          {/* Busca (Nome/Vaga) */}
           <div className="flex items-center gap-2 flex-1 border border-neutral-200 rounded-md px-3 bg-neutral-50 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
             <Search className="h-4 w-4 text-neutral-400 shrink-0" />
             <Input 
@@ -155,6 +171,17 @@ export default function AdminApplicationsPage() {
                 className="border-none shadow-none focus-visible:ring-0 h-9 bg-transparent w-full text-sm placeholder:text-neutral-400"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {/* NOVO: Filtro de Especialização */}
+          <div className="flex items-center gap-2 w-full md:w-[250px] border border-neutral-200 rounded-md px-3 bg-neutral-50 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+            <GraduationCap className="h-4 w-4 text-neutral-400 shrink-0" />
+            <Input 
+                placeholder="Filtrar Especialização..." 
+                className="border-none shadow-none focus-visible:ring-0 h-9 bg-transparent w-full text-sm placeholder:text-neutral-400"
+                value={specFilter}
+                onChange={(e) => setSpecFilter(e.target.value)}
             />
           </div>
 
@@ -186,6 +213,7 @@ export default function AdminApplicationsPage() {
           <TableHeader className="bg-neutral-50">
             <TableRow>
               <TableHead>Candidato</TableHead>
+              <TableHead>Especialização</TableHead> {/* NOVA COLUNA */}
               <TableHead>Vaga / Instituição</TableHead>
               <TableHead>Data</TableHead>
               <TableHead>CV</TableHead>
@@ -195,7 +223,7 @@ export default function AdminApplicationsPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600"/></TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600"/></TableCell></TableRow>
             ) : filtered.length > 0 ? (
               filtered.map((app) => (
                 <TableRow key={app.id} className="hover:bg-neutral-50/50">
@@ -214,6 +242,16 @@ export default function AdminApplicationsPage() {
                       </div>
                     </div>
                   </TableCell>
+                  
+                  {/* NOVA CÉLULA: Especialização */}
+                  <TableCell>
+                    {app.user.educationLevel ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            {app.user.educationLevel}
+                        </span>
+                    ) : <span className="text-neutral-400 text-xs">-</span>}
+                  </TableCell>
+
                   <TableCell>
                     <p className="font-medium text-neutral-900 text-sm">{app.job.title}</p>
                     <p className="text-xs text-neutral-500">{app.job.institution.name}</p>
@@ -222,7 +260,6 @@ export default function AdminApplicationsPage() {
                     {new Date(app.createdAt).toLocaleDateString()}
                   </TableCell>
                   
-                  {/* CV com fallback */}
                   <TableCell>
                     {(app.resumeUrl || app.user.resumeUrl) ? (
                       <Button variant="outline" size="sm" asChild className="h-7 text-xs border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100">
@@ -237,13 +274,12 @@ export default function AdminApplicationsPage() {
                   
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      {/* Botão Ver Detalhes */}
                       <Button size="icon" variant="ghost" asChild className="h-8 w-8 text-neutral-500 hover:text-blue-600" title="Ver Detalhes">
                         <Link href={`/admin/applications/${app.id}`}>
                             <Eye className="h-4 w-4" />
                         </Link>
                       </Button>
-
+                      {/* ... botões de aprovar/rejeitar mantidos ... */}
                       <Button 
                         size="icon" variant="ghost" 
                         className="h-8 w-8 text-green-600 hover:bg-green-50"
@@ -265,7 +301,7 @@ export default function AdminApplicationsPage() {
                 </TableRow>
               ))
             ) : (
-              <TableRow><TableCell colSpan={6} className="text-center py-10 text-neutral-500">Nenhuma candidatura encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-10 text-neutral-500">Nenhuma candidatura encontrada com os filtros atuais.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

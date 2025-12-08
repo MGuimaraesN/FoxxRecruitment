@@ -3,7 +3,6 @@
 import { createContext, useState, useEffect, ReactNode, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 
-// Interface atualizada do Usuário
 interface User {
   userId: number;
   firstName: string;
@@ -13,12 +12,8 @@ interface User {
   activeInstitutionId: number | null;
   avatarUrl?: string | null;
   resumeUrl?: string | null;
-  bio?: string | null;
   linkedinUrl?: string | null;
-  githubUrl?: string | null;
   portfolioUrl?: string | null;
-  course?: string | null;
-  graduationYear?: number | null;
   role?: { name: string }; 
 }
 
@@ -27,9 +22,9 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   activeInstitutionId: number | null;
-  login: (token: string) => Promise<User | null>;
+  login: (token: string, shouldRedirect?: boolean) => Promise<void>;
   logout: () => void;
-  leaveInstitution: () => Promise<void>; // Nova função para desvincular
+  leaveInstitution: () => Promise<void>;
   fetchUserProfile: () => Promise<void>;
   setActiveInstitutionId: (id: number | null) => void;
   getActiveRole: () => string | null;
@@ -52,107 +47,88 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // 1. Inicialização
   useEffect(() => {
-    const storedToken = localStorage.getItem('access_token');
-    if (storedToken) {
-      setToken(storedToken);
-    } else {
-      setLoading(false);
-    }
+    const initAuth = async () => {
+      const storedToken = localStorage.getItem('access_token');
+      if (storedToken) {
+        setToken(storedToken);
+        await fetchUserProfile(storedToken);
+      } else {
+        setLoading(false);
+      }
+    };
+    initAuth();
   }, []);
 
-  const fetchUserProfile = async () => {
-    const storedToken = localStorage.getItem('access_token');
-    if (!storedToken) {
-      logout();
+  const fetchUserProfile = async (tokenOverride?: string) => {
+    const currentToken = tokenOverride || token || localStorage.getItem('access_token');
+    if (!currentToken) {
       setLoading(false);
       return;
     }
 
     try {
+      // --- CORREÇÃO: Usar /auth/profile em vez de /auth/me ---
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
-        headers: {
-          'Authorization': `Bearer ${storedToken}`,
-        },
+        headers: { 'Authorization': `Bearer ${currentToken}` },
+        cache: 'no-store'
       });
 
       if (res.ok) {
         const userData = await res.json();
         
-        // Tenta encontrar a role na instituição ativa
-        const activeInst = userData.institutions.find((i: any) => i.institutionId === userData.activeInstitutionId);
-        
+        const activeInst = userData.institutions?.find((i: any) => i.institutionId === userData.activeInstitutionId);
         if (activeInst) {
             userData.role = activeInst.role;
-        } else {
-             // Se não encontrou vínculo direto (ex: Super Admin navegando em outro tenant),
-             // verifica se é Super Admin global para manter o privilégio no frontend
+        } else if (userData.institutions?.length > 0) {
              const isSuperAdmin = userData.institutions.some((i: any) => i.role.name === 'superadmin');
-             if (isSuperAdmin) {
-                 userData.role = { name: 'superadmin' };
-             } else if (userData.institutions.length > 0) {
-                 // Fallback para o primeiro cargo encontrado se não houver ativo
-                 userData.role = userData.institutions[0].role;
-             }
+             if (isSuperAdmin) userData.role = { name: 'superadmin' };
+             else userData.role = userData.institutions[0].role;
         }
 
         setUser(userData);
         setActiveInstitutionId(userData.activeInstitutionId);
       } else {
-        logout();
+        if (res.status === 401) logout();
       }
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
-      logout();
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (token) {
-      fetchUserProfile();
-    }
-  }, [token]);
-
-  const login = async (newToken: string): Promise<User | null> => {
-    setLoading(true); 
+  const login = async (newToken: string, shouldRedirect: boolean = true) => {
     localStorage.setItem('access_token', newToken);
     setToken(newToken);
-    return null; 
+    
+    await fetchUserProfile(newToken);
+    
+    if (shouldRedirect) {
+        router.push('/dashboard'); 
+    }
   };
 
   const logout = () => {
-    // 1. Ativa o loading para mostrar o spinner imediatamente
-    setLoading(true);
-    
-    // 2. Limpa os dados
     localStorage.removeItem('access_token');
     setUser(null);
     setToken(null);
     setActiveInstitutionId(null);
-    
-    // 3. Redireciona
+    setLoading(false);
     router.push('/');
-
-    // 4. Desativa o loading após um breve delay
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
   };
 
-  // Nova função para sair da instituição atual (definir activeInstitutionId como null)
   const leaveInstitution = async () => {
-    const storedToken = localStorage.getItem('access_token');
-    if (!storedToken) return;
+    const currentToken = token || localStorage.getItem('access_token');
+    if (!currentToken) return;
 
     try {
-      // Envia null para o backend para limpar a activeInstitutionId
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/switch-institution`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${storedToken}`,
+          'Authorization': `Bearer ${currentToken}`,
         },
         body: JSON.stringify({ institutionId: null }),
       });
@@ -160,8 +136,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const data = await res.json();
         if (data.access_token) {
-          // Atualiza o token com o novo estado (sem instituição ativa)
-          await login(data.access_token);
+            localStorage.setItem('access_token', data.access_token);
+            setToken(data.access_token);
+            await fetchUserProfile(data.access_token); 
+            router.refresh();
         }
       }
     } catch (error) {
@@ -172,14 +150,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const getActiveRole = () => {
     if (!user) return null;
     if (user.role?.name) return user.role.name;
-    
-    // Tenta buscar novamente nos vínculos
-    const activeInst = user.institutions.find((i: any) => i.institutionId === user.activeInstitutionId);
+    const activeInst = user.institutions?.find((i: any) => i.institutionId === user.activeInstitutionId);
     if (activeInst) return activeInst.role.name;
-    
-    // Último recurso: verifica se é superadmin global
-    if (user.institutions.some((i:any) => i.role.name === 'superadmin')) return 'superadmin';
-    
+    if (user.institutions?.some((i:any) => i.role.name === 'superadmin')) return 'superadmin';
     return null;
   };
 
@@ -190,8 +163,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     activeInstitutionId,
     login,
     logout,
-    leaveInstitution, // Exportando a nova função
-    fetchUserProfile,
+    leaveInstitution,
+    fetchUserProfile: () => fetchUserProfile(),
     setActiveInstitutionId,
     getActiveRole
   };

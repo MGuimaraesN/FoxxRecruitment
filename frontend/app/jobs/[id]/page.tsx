@@ -1,267 +1,228 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, use } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { 
-  ArrowLeft, Building2, MapPin, Calendar, 
-  Loader2, Share2, Mail, Phone,
-  Briefcase, Globe, AlertCircle
-} from 'lucide-react';
 import { QuickApplyModal } from '@/components/QuickApplyModal';
+import { Button } from '@/components/ui/button';
+import { 
+    Loader2, MapPin, Building, Calendar, ArrowLeft, 
+    CheckCircle, BookOpen, Mail, Share2, Globe, Phone, School 
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-interface Job {
-    id: number;
-    title: string;
-    description: string;
-    status: string;
-    createdAt: string;
-    email: string;
-    telephone: string;
-    area: { name: string };
-    category: { name: string };
-    author: { firstName: string; lastName: string };
-    companyName?: string | null;
-    institution: { 
-        id: number, 
-        name: string, 
-        logoUrl?: string | null, 
-        primaryColor?: string | null 
-    };
-    isPublic: boolean;
-}
+const safeColor = (color: string | null | undefined, fallback = '#1e3a8a') => {
+    if (!color) return fallback;
+    return color.startsWith('#') ? color : `#${color}`;
+};
 
-export default function JobDetailsPage() {
-    const { id } = useParams();
-    const router = useRouter();
-    const { token } = useAuth();
-    
-    const [job, setJob] = useState<Job | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [applying, setApplying] = useState(false);
-    const [hasApplied, setHasApplied] = useState(false);
-    const [showQuickApply, setShowQuickApply] = useState(false);
+export default function JobDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const { id } = resolvedParams;
+  const { user, token } = useAuth();
+  const router = useRouter();
 
-    // Fetch Job (mesma lógica, mas job agora tem branding)
-    useEffect(() => {
-        const fetchJob = async () => {
-            try {
-                const headers: any = {};
-                if (token) headers['Authorization'] = `Bearer ${token}`;
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/jobs/${id}`, { headers });
-                if (res.ok) setJob(await res.json());
-                else toast.error("Vaga não encontrada ou restrita.");
-            } catch (error) { console.error(error); } 
-            finally { setLoading(false); }
-        };
-        if (id) fetchJob();
-    }, [id, token]);
+  const [job, setJob] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Check Application (mesma lógica)
-    useEffect(() => {
-        const checkStatus = async () => {
-            if (!token || !id) return;
-            try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/applications/my-applications`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const myApps = await res.json();
-                    if (myApps.some((app: any) => app.jobId === Number(id))) setHasApplied(true);
-                }
-            } catch (e) { console.error(e); }
-        };
-        checkStatus();
-    }, [id, token]);
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        const headers: any = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/jobs/${id}`, { 
+            headers,
+            cache: 'no-store'
+        });
 
-    const executeApplication = async () => {
-        setApplying(true);
-        const currentToken = localStorage.getItem('access_token');
-        if (!currentToken) {
-            toast.error("Erro de autenticação.");
-            setApplying(false);
-            return;
+        if (res.ok) {
+            const data = await res.json();
+            setJob(data);
+        } else {
+            router.push('/');
         }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id) fetchJob();
+  }, [id, router, token]);
+
+  useEffect(() => {
+    const checkApplication = async () => {
+        if (!token || !id) return;
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/applications/apply`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                body: JSON.stringify({ jobId: id })
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/applications/check/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                cache: 'no-store'
             });
-            const json = await res.json();
             if (res.ok) {
-                toast.success("Candidatura realizada!");
-                setHasApplied(true);
-            } else if (res.status === 409) {
-                toast.info("Você já se candidatou.");
-                setHasApplied(true);
-            } else {
-                toast.error(json.error || "Erro ao se candidatar.");
+                const { hasApplied } = await res.json();
+                setHasApplied(hasApplied);
             }
-        } catch (error) { toast.error("Erro de rede."); } 
-        finally { setApplying(false); }
+        } catch (e) { console.error(e); }
     };
+    if (!loading && job) checkApplication();
+  }, [token, id, loading, job]);
 
-    const handleApplyClick = () => {
-        if (!token) setShowQuickApply(true);
-        else executeApplication();
-    };
+  const handleApplyClick = () => {
+      // Abre o modal para todos: 
+      // - Se logado: Pede para confirmar dados/CV
+      // - Se não logado: Pede login/cadastro
+      setIsModalOpen(true);
+  };
 
-    const handleShare = () => {
-        navigator.clipboard.writeText(window.location.href);
-        toast.success("Link copiado!");
-    };
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success("Link do edital copiado!");
+  };
 
-    if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-neutral-500" /></div>;
-    if (!job) return <div className="text-center py-20">Vaga não encontrada.</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-blue-800" /></div>;
+  if (!job) return null;
 
-    const isOpen = ['published', 'open'].includes(job.status);
-    const brandColor = job.institution.primaryColor || '#2563eb'; // Default blue if none
+  const primaryColor = safeColor(job.institution.primaryColor);
+  const logoUrl = job.institution.logoUrl ? `${process.env.NEXT_PUBLIC_API_URL}${job.institution.logoUrl}` : null;
 
-    return (
-        <div className="min-h-screen bg-neutral-50 pb-20">
-            {showQuickApply && job && (
-                <QuickApplyModal 
-                    isOpen={showQuickApply} 
-                    onClose={() => setShowQuickApply(false)}
-                    jobTitle={job.title}
-                    jobInstitutionId={job.institution.id}
-                    onSuccess={executeApplication}
-                />
-            )}
-
-            {/* Header com Branding Dinâmico */}
-            <div className="bg-white border-b border-neutral-200">
-                {/* Top Bar Branding */}
-                <div style={{ backgroundColor: brandColor }} className="h-1.5 w-full" />
-                
-                <div className="container mx-auto px-4 py-8 max-w-6xl">
-                    <div className="flex justify-between items-start mb-6">
-                        <Button variant="ghost" onClick={() => router.push('/')} className="pl-0 text-neutral-500 hover:bg-transparent group">
-                            <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Voltar
-                        </Button>
-                        
-                        {/* Institution Logo */}
-                        {job.institution.logoUrl && (
-                            <img 
-                                src={`${process.env.NEXT_PUBLIC_API_URL}${job.institution.logoUrl}`} 
-                                alt={job.institution.name} 
-                                className="h-10 object-contain"
-                            />
-                        )}
-                    </div>
-
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                        <div>
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                <span style={{ color: brandColor, borderColor: `${brandColor}30`, backgroundColor: `${brandColor}10` }} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border">
-                                    {job.category.name}
-                                </span>
-                                {isOpen ? (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                        Abertas
-                                    </span>
-                                ) : (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">
-                                        Fechada
-                                    </span>
-                                )}
-                            </div>
-                            
-                            <h1 className="text-3xl md:text-4xl font-bold text-neutral-900 tracking-tight mb-3">
-                                {job.title}
-                            </h1>
-                            
-                            <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-500">
-                                <div className="flex items-center gap-1.5">
-                                    <Building2 className="h-4 w-4" style={{ color: brandColor }} />
-                                    <span className="font-medium text-neutral-900">{job.companyName || job.institution.name}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <MapPin className="h-4 w-4" /> {job.area.name}
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <Calendar className="h-4 w-4" /> {new Date(job.createdAt).toLocaleDateString('pt-BR')}
-                                </div>
-                            </div>
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
+      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-slate-500 hover:text-slate-800">
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
+                <div className="flex items-center gap-3">
+                    {logoUrl ? (
+                        <img src={logoUrl} alt={job.institution.name} className="h-10 w-auto object-contain" />
+                    ) : (
+                        <div className="h-10 w-10 bg-slate-100 rounded flex items-center justify-center text-slate-400">
+                            <School className="h-5 w-5" />
                         </div>
-
-                        <Button variant="outline" size="icon" onClick={handleShare}><Share2 className="h-4 w-4" /></Button>
+                    )}
+                    <div>
+                        <span className="text-sm font-bold text-slate-800 block leading-tight">{job.institution.name}</span>
+                        <span className="text-xs text-slate-500 block">Portal de Oportunidades</span>
                     </div>
                 </div>
             </div>
-
-            <div className="container mx-auto px-4 py-8 max-w-6xl">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-8">
-                        <div className="bg-white rounded-xl p-6 md:p-8 shadow-sm border border-neutral-200">
-                            <h2 className="text-xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
-                                <Briefcase className="h-5 w-5" style={{ color: brandColor }} />
-                                Descrição
-                            </h2>
-                            <div className="prose prose-neutral max-w-none text-neutral-600" dangerouslySetInnerHTML={{ __html: job.description }} />
-                        </div>
-                        <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 flex gap-3 items-start">
-                            <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                            <div className="text-sm text-blue-900/80">
-                                <p className="font-semibold mb-1">Segurança</p>
-                                Esta vaga foi verificada pela {job.institution.name}.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-neutral-200 lg:sticky lg:top-24">
-                            <div className="mb-6">
-                                <h3 className="text-lg font-bold text-neutral-900 mb-2">Interessado?</h3>
-                                <p className="text-sm text-neutral-500">{hasApplied ? "Candidatura enviada." : "Envie seu perfil agora."}</p>
-                            </div>
-
-                            {hasApplied ? (
-                                <div className="p-4 bg-green-50 border border-green-100 rounded-lg flex items-center justify-center gap-2 text-green-700 font-medium mb-4">
-                                    <CheckCircle2 className="h-5 w-5" /> Enviada
-                                </div>
-                            ) : isOpen ? (
-                                <Button 
-                                    size="lg" 
-                                    onClick={handleApplyClick} 
-                                    disabled={applying}
-                                    className="w-full text-white shadow-lg transition-all hover:opacity-90"
-                                    style={{ backgroundColor: brandColor }}
-                                >
-                                    {applying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Quero me Candidatar"}
-                                </Button>
-                            ) : (
-                                <Button disabled className="w-full bg-neutral-100 text-neutral-400 border border-neutral-200 mb-4">Encerrada</Button>
-                            )}
-
-                            <hr className="my-6 border-neutral-100" />
-
-                            <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wider mb-4">Contato</h4>
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-3 text-sm text-neutral-600">
-                                    <div className="bg-neutral-50 p-2 rounded-md"><Mail className="h-4 w-4 text-neutral-500" /></div>
-                                    <span className="truncate">{job.email}</span>
-                                </div>
-                                {job.telephone && (
-                                    <div className="flex items-center gap-3 text-sm text-neutral-600">
-                                        <div className="bg-neutral-50 p-2 rounded-md"><Phone className="h-4 w-4 text-neutral-500" /></div>
-                                        <span>{job.telephone}</span>
-                                    </div>
-                                )}
-                                {job.isPublic && (
-                                    <div className="flex items-center gap-3 text-sm text-neutral-600">
-                                        <div className="bg-neutral-50 p-2 rounded-md"><Globe className="h-4 w-4 text-neutral-500" /></div>
-                                        <span>Pública</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div>
+                 <Button variant="outline" size="sm" onClick={handleShare} className="gap-2 text-slate-600 border-slate-300">
+                    <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">Compartilhar</span>
+                 </Button>
             </div>
         </div>
-    );
+      </header>
+
+      <div className="relative py-16 px-4 text-white" style={{ backgroundColor: primaryColor }}>
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10 container mx-auto max-w-5xl">
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-medium mb-6 border border-white/20">
+                <BookOpen className="h-3 w-3 mr-2" />
+                {job.category.name}
+            </div>
+            <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight">{job.title}</h1>
+            <div className="flex flex-wrap gap-6 text-sm md:text-base opacity-90 font-medium">
+                <span className="flex items-center"><Building className="w-4 h-4 mr-2"/> {job.companyName || job.institution.name}</span>
+                <span className="flex items-center"><MapPin className="w-4 h-4 mr-2"/> {job.area.name}</span>
+                <span className="flex items-center"><Calendar className="w-4 h-4 mr-2"/> Publicado em: {new Date(job.createdAt).toLocaleDateString()}</span>
+            </div>
+        </div>
+      </div>
+
+      <div className="flex-1 container mx-auto px-4 py-12 max-w-5xl">
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div className="lg:col-span-2 space-y-8">
+                <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+                    <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 pb-4 border-b border-slate-100">
+                        Detalhes do Edital
+                    </h3>
+                    <div 
+                        className="prose prose-slate max-w-none text-slate-700 leading-relaxed" 
+                        dangerouslySetInnerHTML={{ __html: job.description }} 
+                    />
+                </div>
+            </div>
+
+            <div className="lg:col-span-1">
+                <div className="sticky top-24 space-y-6">
+                    
+                    <div className="bg-white p-6 rounded-xl shadow-lg shadow-slate-200/50 border border-slate-100">
+                        <div className="mb-6">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Situação da Inscrição</span>
+                            <div className="flex items-center justify-between mt-1">
+                                <span className="text-slate-900 font-semibold">Inscrições Abertas</span>
+                                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                            </div>
+                        </div>
+
+                        {hasApplied ? (
+                            <div className="w-full bg-green-50 border border-green-200 text-green-700 font-bold py-4 px-4 rounded-xl flex flex-col items-center justify-center gap-2 text-center">
+                                <CheckCircle className="h-8 w-8" />
+                                <span>Inscrição Confirmada!</span>
+                                <Button variant="link" onClick={() => router.push('/dashboard')} className="text-green-800 h-auto p-0">
+                                    Ver no Painel
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button 
+                                onClick={handleApplyClick} 
+                                className="w-full h-14 text-lg font-bold text-white rounded-xl shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                style={{ 
+                                    backgroundColor: primaryColor,
+                                    boxShadow: `0 10px 30px -10px ${primaryColor}80` 
+                                }}
+                            >
+                                Quero me Inscrever
+                            </Button>
+                        )}
+
+                        <p className="text-xs text-slate-400 text-center mt-4 leading-relaxed">
+                            A inscrição implica na aceitação das normas da instituição.
+                        </p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-xl border border-slate-200">
+                        <h4 className="text-sm font-bold text-slate-900 mb-4">Suporte</h4>
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3 text-sm text-slate-600">
+                                <Mail className="h-4 w-4 text-slate-400" /><span className="truncate">{job.email}</span>
+                            </div>
+                            {job.telephone && (
+                                <div className="flex items-center gap-3 text-sm text-slate-600">
+                                    <Phone className="h-4 w-4 text-slate-400" /><span>{job.telephone}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+         </div>
+      </div>
+
+      <footer className="bg-slate-900 text-slate-400 py-8 text-center text-sm mt-auto">
+        <div className="container mx-auto px-4">
+            <p>Sistema de Processos Seletivos - {job.institution.name}</p>
+        </div>
+      </footer>
+
+      <QuickApplyModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        jobTitle={job.title}
+        jobId={job.id} 
+        jobInstitutionId={job.institution.id}
+        institutionName={job.institution.name}
+        onSuccess={() => setHasApplied(true)}
+      />
+    </div>
+  );
 }
