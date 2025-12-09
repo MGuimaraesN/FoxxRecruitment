@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { 
   Mail, GraduationCap, CalendarIcon,
   Linkedin, Globe, Camera, Lock, Save, Loader2, 
-  FileText, UploadCloud, Download, CheckCircle, BookOpen, Link as LinkIcon
+  Phone, User, BookOpen, Link as LinkIcon
 } from 'lucide-react';
 import {
   Select,
@@ -21,51 +21,76 @@ import {
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
+// Opções Padrão (Values iguais aos que queremos salvar no banco)
+const EDUCATION_OPTIONS = [
+    { value: 'Doutorado', label: 'Doutorado' },
+    { value: 'Mestrado', label: 'Mestrado' },
+    { value: 'Especialização', label: 'Especialização (Pós-graduação)' },
+    { value: 'Graduação', label: 'Graduação' },
+    { value: 'Técnico', label: 'Técnico' },
+    { value: 'Ensino Médio', label: 'Ensino Médio' },
+];
+
+const formatPhone = (value: string) => {
+    if (!value) return '';
+    return value
+        .replace(/\D/g, '') 
+        .replace(/^(\d{2})(\d)/g, '($1) $2') 
+        .replace(/(\d)(\d{4})$/, '$1-$2') 
+        .slice(0, 15);
+};
+
 export default function ProfilePage() {
   const { user, token, fetchUserProfile } = useAuth();
 
-  // Estados do Formulário de Perfil
   const [profileData, setProfileData] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '', 
     bio: '',
     linkedinUrl: '',
-    lattesUrl: '', // Usado para Lattes
+    githubUrl: '', 
     portfolioUrl: '',
-    course: '', // Departamento / Área
+    course: '', 
     graduationYear: '',
-    educationLevel: '', // Nova formação
-    specialization: '', // Especialidade
+    educationLevel: '', 
+    specialization: '',
   });
 
-  // Estados de Senha
   const [passwordData, setPasswordData] = useState({
     oldPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
   
-  // Estados de Carregamento
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [isAvatarLoading, setIsAvatarLoading] = useState(false);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
-  
-  // Estados de Currículo
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [isResumeLoading, setIsResumeLoading] = useState(false);
 
   useEffect(() => {
     document.title = `Perfil do Docente | ${ APP_NAME }`;
   }, []);
   
+  // --- CARREGAMENTO DOS DADOS (CRÍTICO) ---
   useEffect(() => {
     if (user) {
+      // 1. Recebe o valor bruto do banco
+      const rawEducation = user.educationLevel || '';
+
       setProfileData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        phone: user.phone || '', // Garante carregamento do telefone
+        email: user.email || '',
         bio: user.bio || '',
         linkedinUrl: user.linkedinUrl || '',
-        lattesUrl: user.lattesUrl || '',
+        githubUrl: user.githubUrl || '',
         portfolioUrl: user.portfolioUrl || '',
         course: user.course || '',
         graduationYear: user.graduationYear?.toString() || '',
-        educationLevel: user.educationLevel || '',
+        // 2. Define diretamente no estado. Sem conversões.
+        educationLevel: rawEducation, 
         specialization: user.specialization || '',
       });
     }
@@ -75,6 +100,12 @@ export default function ProfilePage() {
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
+    
+    if (id === 'phone') {
+        setProfileData((prev) => ({ ...prev, [id]: formatPhone(value) }));
+        return;
+    }
+
     setProfileData((prev) => ({ ...prev, [id]: value }));
   };
 
@@ -121,6 +152,8 @@ export default function ProfilePage() {
 
     const body = {
       ...profileData,
+      // Envia o valor exatamente como está no select/estado
+      educationLevel: profileData.educationLevel,
       graduationYear: profileData.graduationYear ? parseInt(profileData.graduationYear, 10) : null,
     };
 
@@ -175,54 +208,27 @@ export default function ProfilePage() {
     }
   };
 
-  const handleResumeUpload = async () => {
-    if (!resumeFile || !token) return;
-    setIsResumeLoading(true);
-    
-    const formData = new FormData();
-    formData.append('resume', resumeFile);
-
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile/resume`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData
-        });
-
-        if (res.ok) {
-            toast.success('Currículo enviado com sucesso!');
-            setResumeFile(null);
-            fetchUserProfile();
-        } else {
-            const data = await res.json();
-            toast.error(data.error || 'Erro ao enviar currículo.');
-        }
-    } catch(err) {
-        toast.error('Erro de rede.');
-    } finally {
-        setIsResumeLoading(false);
-    }
-  };
-
   if (!user) return <div className="flex justify-center h-64 items-center"><Loader2 className="animate-spin text-blue-600"/></div>;
+
+  // Lógica de Fallback: 
+  // Verifica se o valor atual existe na lista padrão. Se não, é um valor customizado/legado.
+  const currentEduValue = profileData.educationLevel;
+  const isCustomOption = currentEduValue && !EDUCATION_OPTIONS.some(opt => opt.value === currentEduValue);
 
   return (
     <div className="container mx-auto pb-20 space-y-8 max-w-5xl">
       
       {/* 1. Header do Perfil */}
       <div className="relative bg-white p-8 rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
-        {/* Background Decorativo */}
         <div className="absolute top-0 right-0 w-full h-32 bg-gradient-to-l from-blue-50 to-transparent pointer-events-none" />
 
         <div className="relative flex flex-col md:flex-row items-center gap-6 z-10">
-            
-            {/* Avatar */}
             <div className="relative group shrink-0">
                 <div className="h-28 w-28 rounded-full border-4 border-white bg-neutral-100 overflow-hidden shadow-lg flex items-center justify-center ring-1 ring-neutral-200">
                     {user?.avatarUrl ? (
                         <img src={`${process.env.NEXT_PUBLIC_API_URL}${user?.avatarUrl}`} alt="Avatar" className="h-full w-full object-cover" />
                     ) : (
-                        <span className="text-3xl font-bold text-neutral-400">{user.firstName[0]}{user.lastName[0]}</span>
+                        <span className="text-3xl font-bold text-neutral-400">{user.firstName?.[0]}{user.lastName?.[0]}</span>
                     )}
                     {isAvatarLoading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="text-white animate-spin"/></div>}
                 </div>
@@ -232,17 +238,15 @@ export default function ProfilePage() {
                 </label>
             </div>
 
-            {/* Informações Principais */}
             <div className="text-center md:text-left flex-1">
                 <h1 className="text-2xl md:text-3xl font-bold text-neutral-900 leading-tight">
-                    {user.firstName} {user.lastName}
+                    {profileData.firstName} {profileData.lastName}
                 </h1>
                 <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 mt-2 text-neutral-500 text-sm">
                     <div className="flex items-center">
                         <Mail className="h-4 w-4 mr-1.5" />
                         {user.email}
                     </div>
-                    {/* Se tiver titulação e departamento, mostra aqui */}
                     {(profileData.educationLevel || profileData.course) && (
                          <>
                             <span className="hidden md:inline text-neutral-300">•</span>
@@ -260,26 +264,70 @@ export default function ProfilePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* 2. Coluna Esquerda: Formulário Acadêmico */}
+        {/* 2. Coluna Esquerda: Formulário Principal */}
         <div className="lg:col-span-2 space-y-8">
             
-            {/* Bloco: Dados Acadêmicos */}
             <form onSubmit={handleProfileSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200 space-y-6">
-                <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
-                    <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
-                        <GraduationCap className="h-5 w-5 text-blue-600" /> 
-                        Dados Acadêmicos
-                    </h2>
+                
+                {/* Seção 1: Dados Pessoais */}
+                <div className="space-y-5 border-b border-neutral-100 pb-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                            <User className="h-5 w-5 text-blue-600" /> 
+                            Dados Pessoais
+                        </h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label htmlFor="firstName" className="block text-sm font-medium text-neutral-700 mb-1">Nome</label>
+                            <Input id="firstName" value={profileData.firstName} onChange={handleProfileChange} className="bg-neutral-50" />
+                        </div>
+                         <div>
+                            <label htmlFor="lastName" className="block text-sm font-medium text-neutral-700 mb-1">Sobrenome</label>
+                            <Input id="lastName" value={profileData.lastName} onChange={handleProfileChange} className="bg-neutral-50" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-1">Email</label>
+                            <Input id="email" value={profileData.email} disabled className="bg-neutral-100 text-neutral-500 cursor-not-allowed" />
+                        </div>
+                        <div>
+                            <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 mb-1">Telefone / WhatsApp</label>
+                            <div className="relative">
+                                <Phone className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+                                <Input 
+                                    id="phone" 
+                                    value={profileData.phone} 
+                                    onChange={handleProfileChange} 
+                                    placeholder="(99) 99999-9999" 
+                                    className="bg-neutral-50 pl-9" 
+                                    maxLength={15}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
+                {/* Seção 2: Dados Acadêmicos */}
                 <div className="space-y-5">
-                    
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                            <GraduationCap className="h-5 w-5 text-blue-600" /> 
+                            Dados Acadêmicos
+                        </h2>
+                    </div>
+
                     {/* Linha 1: Titulação e Ano */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
                             <label className="block text-sm font-medium text-neutral-700 mb-1">
                                 Titulação Máxima
                             </label>
+                            
+                            {/* Select Protegido com Opção Dinâmica */}
                             <Select 
                                 value={profileData.educationLevel} 
                                 onValueChange={(val) => handleSelectChange(val, 'educationLevel')}
@@ -288,10 +336,18 @@ export default function ProfilePage() {
                                     <SelectValue placeholder="Selecione sua formação" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Doutorado">Doutorado</SelectItem>
-                                    <SelectItem value="Mestrado">Mestrado</SelectItem>
-                                    <SelectItem value="Especialização">Especialização (Pós-graduação)</SelectItem>
-                                    <SelectItem value="Graduação">Graduação</SelectItem>
+                                    {EDUCATION_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </SelectItem>
+                                    ))}
+                                    
+                                    {/* Exibe o valor do banco se não for compatível com as opções padrão */}
+                                    {isCustomOption && (
+                                        <SelectItem value={currentEduValue}>
+                                            {currentEduValue} (Salvo)
+                                        </SelectItem>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -350,7 +406,7 @@ export default function ProfilePage() {
                             value={profileData.bio} 
                             onChange={handleProfileChange} 
                             placeholder="Descreva brevemente sua trajetória acadêmica e interesses de pesquisa..." 
-                            className="min-h-[120px] resize-none bg-neutral-50" 
+                            className="min-h-[100px] resize-none bg-neutral-50" 
                         />
                     </div>
                 </div>
@@ -362,69 +418,11 @@ export default function ProfilePage() {
                 </div>
             </form>
 
-            {/* Bloco: Documentação (Currículo) */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200 space-y-6">
-                <div className="border-b border-neutral-100 pb-4">
-                    <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-orange-600" /> 
-                        Documentação (CV/Portfólio)
-                    </h2>
-                </div>
-
-                <div className="bg-neutral-50 rounded-lg p-5 border border-neutral-200">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${user.resumeUrl ? 'bg-green-100 text-green-600' : 'bg-neutral-200 text-neutral-400'}`}>
-                                {user.resumeUrl ? <CheckCircle className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
-                            </div>
-                            <div>
-                                <p className="font-semibold text-neutral-900">
-                                    {user.resumeUrl ? 'Documento PDF Anexado' : 'Nenhum documento enviado'}
-                                </p>
-                                <p className="text-xs text-neutral-500">
-                                    {user.resumeUrl ? 'Disponível para download.' : 'Anexe seu Currículo em PDF para facilitar processos.'}
-                                </p>
-                            </div>
-                        </div>
-
-                        {user.resumeUrl && (
-                             <Button variant="outline" size="sm" asChild className="shrink-0 gap-2">
-                                <a href={`${process.env.NEXT_PUBLIC_API_URL}${user.resumeUrl}`} target="_blank" rel="noopener noreferrer">
-                                    <Download className="h-4 w-4" /> Baixar
-                                </a>
-                             </Button>
-                        )}
-                    </div>
-
-                    <div className="mt-6 pt-4 border-t border-neutral-200/50">
-                        <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2 block">
-                            {user.resumeUrl ? 'Atualizar Arquivo' : 'Fazer Upload (PDF)'}
-                        </label>
-                        <div className="flex gap-2">
-                            <Input 
-                                type="file" 
-                                accept="application/pdf" 
-                                onChange={(e) => setResumeFile(e.target.files?.[0] || null)} 
-                                className="bg-white text-sm file:text-blue-600 file:font-semibold cursor-pointer"
-                            />
-                            <Button 
-                                onClick={handleResumeUpload} 
-                                disabled={!resumeFile || isResumeLoading} 
-                                className="bg-neutral-900 text-white shrink-0"
-                            >
-                                {isResumeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
 
         {/* 3. Coluna Direita: Links e Segurança */}
         <div className="space-y-8">
             
-            {/* Redes Sociais / Acadêmicas */}
             <form onSubmit={handleProfileSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200 space-y-4">
                  <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Globe className="h-4 w-4 text-blue-500" /> Links Acadêmicos
@@ -438,17 +436,17 @@ export default function ProfilePage() {
                         <Input className="pl-10 text-xs" id="linkedinUrl" value={profileData.linkedinUrl} onChange={handleProfileChange} placeholder="LinkedIn" />
                     </div>
                     
-                    {/* Lattes (mapeado para lattesUrl no backend) */}
+                    {/* Lattes */}
                     <div className="relative group">
                             <div className="absolute left-3 top-2.5 flex items-center justify-center h-5 w-5 rounded bg-blue-100 text-blue-800 border border-blue-200">
                             <BookOpen className="h-3.5 w-3.5" />
                         </div>
                         <Input 
-                            className="pl-10 text-xs" 
-                            id="lattesUrl" // Campo do DB é lattesUrl, mas visualmente é Lattes
-                            value={profileData.lattesUrl} 
+                            className="pl-10 text-xs font-medium" 
+                            id="githubUrl" 
+                            value={profileData.githubUrl} 
                             onChange={handleProfileChange} 
-                            placeholder="Lattes" 
+                            placeholder="Link do Currículo Lattes" 
                         />
                     </div>
 

@@ -30,7 +30,8 @@ model User {
   job                 Job[]
   institutions        UserInstitutionRole[]
   activeInstitutionId Int?
-  bio                 String?               
+  bio                 String?  
+  phone               String?             
   linkedinUrl         String?
   lattesUrl           String?
   portfolioUrl        String?

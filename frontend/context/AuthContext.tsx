@@ -24,18 +24,20 @@ interface User {
   firstName: string;
   lastName: string;
   email: string;
-  institutions: UserInstitution[]; 
+  institutions: any[]; 
   activeInstitutionId: number | null;
   avatarUrl?: string | null;
   resumeUrl?: string | null;
   linkedinUrl?: string | null;
-  lattesUrl?: string | null; // Usado para Lattes
+  githubUrl?: string | null; // Usado para Lattes antigo ou Github mesmo
+  lattesUrl?: string | null; // <--- NOVO
   portfolioUrl?: string | null;
   course?: string | null;
   graduationYear?: number | null;
-  educationLevel?: string | null; // <--- NOVO
-  specialization?: string | null; // <--- NOVO
+  educationLevel?: string | null;
+  specialization?: string | null;
   bio?: string | null;
+  phone?: string | null; // <--- NOVO
   role?: { name: string }; 
 }
 

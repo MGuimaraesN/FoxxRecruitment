@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { 
-    Loader2, Link as LinkIcon, FileText, UploadCloud, CheckCircle, Phone, User, Mail
+    Loader2, Link as LinkIcon, FileText, UploadCloud, CheckCircle, Phone, User, Mail, BookOpen
 } from 'lucide-react';
 
 interface QuickApplyModalProps {
@@ -30,8 +30,9 @@ export function QuickApplyModal({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   
-  // Documentos
+  // Documentos e Links
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [lattesUrl, setLattesUrl] = useState(''); // Novo estado para Lattes
   const [resumeFile, setResumeFile] = useState<File | null>(null);
 
   // Preenchimento automático ao abrir
@@ -39,8 +40,11 @@ export function QuickApplyModal({
       if (isOpen && user) {
           setFullName(`${user.firstName} ${user.lastName}`);
           setEmail(user.email);
+          
+          // Auto-preenchimento dos novos campos se existirem no usuário
+          if (user.phone) setPhone(user.phone);
           if (user.linkedinUrl) setLinkedinUrl(user.linkedinUrl);
-          // Telefone não existe no user model atual, então começa vazio ou pode ser adicionado futuramente
+          if (user.lattesUrl) setLattesUrl(user.lattesUrl);
       }
   }, [isOpen, user]);
 
@@ -57,15 +61,7 @@ export function QuickApplyModal({
       setIsLoading(true);
 
       try {
-          // 1. Atualizar Perfil (se mudou LinkedIn ou enviou novo CV)
-          if (linkedinUrl && linkedinUrl !== user?.linkedinUrl) {
-              await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                  body: JSON.stringify({ linkedinUrl })
-              });
-          }
-
+          // 1. Upload de Currículo (se houver)
           if (resumeFile) {
               const formData = new FormData();
               formData.append('resume', resumeFile);
@@ -74,21 +70,31 @@ export function QuickApplyModal({
                   headers: { 'Authorization': `Bearer ${token}` },
                   body: formData
               });
-              await fetchUserProfile(); // Atualiza contexto
+              // Não precisamos chamar fetchUserProfile aqui se vamos atualizar os dados abaixo,
+              // mas por segurança vamos deixar a aplicação seguir.
           }
 
-          // 2. Enviar Candidatura
+          // 2. Enviar Candidatura com Dados Extras para Persistência
           const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/applications`, {
               method: 'POST',
               headers: { 
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${token}`
               },
-              body: JSON.stringify({ jobId })
+              body: JSON.stringify({ 
+                  jobId,
+                  // Envia os dados para serem salvos/atualizados no perfil
+                  phone,
+                  linkedinUrl,
+                  lattesUrl
+              })
           });
 
           if (applyRes.ok) {
               toast.success('Inscrição enviada com sucesso!');
+              // Atualiza o perfil local para refletir os novos dados salvos
+              await fetchUserProfile();
+              
               if (onSuccess) await onSuccess();
               onClose();
           } else {
@@ -152,7 +158,7 @@ export function QuickApplyModal({
                                 value={phone} 
                                 onChange={e => setPhone(e.target.value)} 
                                 placeholder="(00) 00000-0000"
-                                className="bg-slate-50" 
+                                className="bg-white" 
                             />
                         </div>
                     </div>
@@ -160,14 +166,22 @@ export function QuickApplyModal({
 
                 <div className="h-px bg-slate-100" />
 
-                {/* Seção 2: Currículo */}
+                {/* Seção 2: Currículo e Links */}
                 <div className="space-y-4">
                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Profissional</h4>
                     
                     <div className="space-y-3">
                          <div className="relative">
                             <span className="absolute left-3 top-2.5 text-blue-600 text-xs font-bold">IN</span>
-                            <Input className="pl-9 bg-slate-50" placeholder="Linkedin URL (Opcional)" value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} />
+                            <Input className="pl-9 bg-white" placeholder="Linkedin URL (Opcional)" value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} />
+                        </div>
+                        
+                        {/* Novo campo Lattes */}
+                        <div className="relative">
+                            <span className="absolute left-3 top-2.5 text-slate-500 text-xs font-bold">
+                                <BookOpen size={14} />
+                            </span>
+                            <Input className="pl-9 bg-white" placeholder="Link do Lattes (Opcional)" value={lattesUrl} onChange={e => setLattesUrl(e.target.value)} />
                         </div>
 
                         <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">

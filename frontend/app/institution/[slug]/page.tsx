@@ -5,10 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Building, LogIn, UserPlus, MapPin, CheckCircle, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
-import { AuthModal } from '@/components/AuthModal'; // Novo
-import { QuickApplyModal } from '@/components/QuickApplyModal'; // Atualizado
+import { AuthModal } from '@/components/AuthModal'; 
+import { QuickApplyModal } from '@/components/QuickApplyModal'; 
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 
 const safeColor = (color: string | null | undefined, fallback = '#2563eb') => {
@@ -26,6 +30,7 @@ export default function InstitutionPage({ params }: { params: Promise<{ slug: st
   const [jobs, setJobs] = useState<any[]>([]);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false); // Novo estado para evitar loop
   
   // Modais
   const [selectedJob, setSelectedJob] = useState<any | null>(null);
@@ -47,7 +52,8 @@ export default function InstitutionPage({ params }: { params: Promise<{ slug: st
         });
         
         if (!instRes.ok) {
-           window.location.href = process.env.NEXT_PUBLIC_APP_URL || '/';
+           setNotFound(true); // Marca como não encontrado em vez de redirecionar
+           setLoading(false);
            return;
         }
 
@@ -62,6 +68,7 @@ export default function InstitutionPage({ params }: { params: Promise<{ slug: st
 
       } catch (error) {
         console.error("Erro", error);
+        setNotFound(true);
       } finally {
         setLoading(false);
       }
@@ -100,29 +107,35 @@ export default function InstitutionPage({ params }: { params: Promise<{ slug: st
           setIsAuthModalOpen(true);
       } else {
           // Logado: Abre formulário de candidatura direto
-          setPendingJobId(jobId); // Guarda também para usar no modal
+          setPendingJobId(jobId); 
           setIsApplyModalOpen(true);
       }
   };
 
   // Callback após login/cadastro com sucesso
   const handleAuthSuccess = () => {
-      // Se tinha uma vaga pendente, abre o modal de aplicação
       if (pendingJobId) {
-          // Pequeno delay para garantir que o contexto de auth atualizou
           setTimeout(() => setIsApplyModalOpen(true), 100);
       }
   };
 
   const handleApplicationSuccess = () => {
-      // Atualiza lista de aplicados e fecha modais
       fetchApplicationStatus();
       setPendingJobId(null);
-      setSelectedJob(null); // Fecha detalhes se estiver aberto
+      setSelectedJob(null);
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-blue-600"/></div>;
-  if (!institution) return null;
+  
+  if (notFound || !institution) {
+      return (
+        <div className="h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
+            <h1 className="text-2xl font-bold text-slate-800">Instituição não encontrada</h1>
+            <p className="text-slate-500">O endereço acessado não corresponde a nenhuma instituição ativa.</p>
+            <Button onClick={() => router.push('/')}>Voltar para o Início</Button>
+        </div>
+      );
+  }
 
   const primaryColor = safeColor(institution.primaryColor);
 

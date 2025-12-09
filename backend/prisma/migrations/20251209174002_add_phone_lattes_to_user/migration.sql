@@ -13,11 +13,14 @@ CREATE TABLE "User" (
     "resumeUrl" TEXT,
     "activeInstitutionId" INTEGER,
     "bio" TEXT,
+    "phone" TEXT,
     "linkedinUrl" TEXT,
-    "githubUrl" TEXT,
+    "lattesUrl" TEXT,
     "portfolioUrl" TEXT,
     "course" TEXT,
     "graduationYear" INTEGER,
+    "specialization" TEXT,
+    "educationLevel" TEXT,
     "resetToken" TEXT,
     "resetTokenExpiry" DATETIME
 );
@@ -97,7 +100,11 @@ CREATE TABLE "Area" (
 CREATE TABLE "Institution" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "name" TEXT NOT NULL,
-    "type" TEXT NOT NULL DEFAULT 'university'
+    "type" TEXT NOT NULL DEFAULT 'university',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "logoUrl" TEXT,
+    "primaryColor" TEXT DEFAULT '#2563eb',
+    "slug" TEXT
 );
 
 -- CreateTable
@@ -137,6 +144,9 @@ CREATE UNIQUE INDEX "Area_name_key" ON "Area"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Institution_name_key" ON "Institution"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Institution_slug_key" ON "Institution"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");

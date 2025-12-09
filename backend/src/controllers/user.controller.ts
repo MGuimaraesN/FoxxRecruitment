@@ -7,33 +7,42 @@ import { upload } from '../middlewares/upload.middleware.js';
 
 export class UserController {
 
-    // ... (Mantenha os outros métodos como register, login, etc., inalterados)
+    // ... (Mantenha register, login, forgotPassword, resetPassword, uploadAvatar, uploadResume, changePassword, switchInstitution inalterados) ...
+    // Vou focar apenas no método que precisa de alteração: updateProfile
 
     async updateProfile(req: Request, res: Response) {
         try {
             const userEmail = (req as any).user?.email;
             const {
+                firstName,      // <--- NOVO
+                lastName,       // <--- NOVO
+                phone,          // <--- NOVO
                 bio,
                 linkedinUrl,
-                lattesUrl, // Usado para Lattes
+                lattesUrl, 
                 portfolioUrl,
-                course, // Usado para Departamento/Área
+                course,
                 graduationYear,
-                educationLevel, // <--- NOVO
-                specialization  // <--- NOVO
+                educationLevel, 
+                specialization  
             } = req.body;
+
+            // Validação básica se necessário (ex: formato de telefone)
 
             const updatedUser = await prisma.user.update({
                 where: { email: userEmail },
                 data: {
+                    firstName,      // <--- Atualiza
+                    lastName,       // <--- Atualiza
+                    phone,          // <--- Atualiza
                     bio,
                     linkedinUrl,
                     lattesUrl,
                     portfolioUrl,
                     course,
                     graduationYear,
-                    educationLevel, // <--- Adicionado
-                    specialization  // <--- Adicionado
+                    educationLevel,
+                    specialization
                 }
             });
 
@@ -44,49 +53,7 @@ export class UserController {
         }
     }
 
-    // ... (Mantenha uploadAvatar, uploadResume, changePassword, switchInstitution, profile, forgotPassword, resetPassword inalterados)
-
-    // Apenas garantindo que o método profile retorne tudo (o prisma findUnique já retorna tudo por padrão se não especificar select, mas bom conferir)
-    async profile(req: Request, res: Response) {
-         try {
-            const userEmail = (req as any).user?.email;
-
-            const userData = await prisma.user.findUnique({
-                where: {email: userEmail},
-                include: {
-                    institutions: {
-                        include: {
-                            institution: true,
-                            role: true
-                        }
-                    }
-                }
-            });
-
-            res.status(200).json({
-                userId: userData?.id,
-                firstName: userData?.firstName,
-                lastName: userData?.lastName,
-                email: userData?.email,
-                avatarUrl: userData?.avatarUrl,
-                institutions: userData?.institutions,
-                activeInstitutionId: userData?.activeInstitutionId,
-                bio: userData?.bio,
-                linkedinUrl: userData?.linkedinUrl,
-                lattesUrl: userData?.lattesUrl,
-                portfolioUrl: userData?.portfolioUrl,
-                course: userData?.course,
-                graduationYear: userData?.graduationYear,
-                educationLevel: userData?.educationLevel, // <--- Garantir retorno
-                specialization: userData?.specialization    // <--- Garantir retorno
-            })
-        } catch (error) {
-            console.error('Erro detalhado ao obter perfil do usuário:', error);
-            res.status(500).json({ error: 'Erro interno do servidor ao buscar perfil', details: (error as Error).message });
-        }
-    }
-    
-    // ... (Outros métodos: register, login, forgotPassword, resetPassword, uploadAvatar, uploadResume, changePassword, switchInstitution)
+    // Mantenha os outros métodos da classe exatamente como estavam...
     async register(req: Request, res: Response) {
         try {
             const {
@@ -436,7 +403,6 @@ export class UserController {
                 return res.status(404).json({ error: 'Usuário não encontrado' });
             }
 
-            // --- CORREÇÃO: Tratar caso de SAIR DA INSTITUIÇÃO (null) separadamente ---
             if (!institutionId) {
                 const updatedUser = await prisma.user.update({
                     where: { email: userEmail },
@@ -451,7 +417,7 @@ export class UserController {
                     firstName: updatedUser.firstName,
                     lastName: updatedUser.lastName,
                     email: updatedUser.email,
-                    activeInstitutionId: null // Explicitamente nulo
+                    activeInstitutionId: null 
                 };
 
                 const token = jwt.sign(payload, secret, { expiresIn: '8h' });
@@ -461,12 +427,9 @@ export class UserController {
                     access_token: token
                 });
             }
-            // ------------------------------------------------------------------------
 
-            // Se chegou aqui, institutionId é válido. Prossegue com a lógica de troca.
             const id = Number(institutionId);
             
-            // Verifica se o usuário é superadmin
             const isSuperAdmin = user.institutions.some(inst => inst.role.name === 'superadmin');
 
             if (!isSuperAdmin) {
@@ -508,4 +471,44 @@ export class UserController {
             res.status(500).json({ error: 'Erro interno do servidor' });
         }
     }
+
+    async profile(req: Request, res: Response) {
+        try {
+           const userEmail = (req as any).user?.email;
+
+           const userData = await prisma.user.findUnique({
+               where: {email: userEmail},
+               include: {
+                   institutions: {
+                       include: {
+                           institution: true,
+                           role: true
+                       }
+                   }
+               }
+           });
+
+           res.status(200).json({
+               userId: userData?.id,
+               firstName: userData?.firstName,
+               lastName: userData?.lastName,
+               email: userData?.email,
+               avatarUrl: userData?.avatarUrl,
+               institutions: userData?.institutions,
+               activeInstitutionId: userData?.activeInstitutionId,
+               bio: userData?.bio,
+               linkedinUrl: userData?.linkedinUrl,
+               lattesUrl: userData?.lattesUrl,
+               portfolioUrl: userData?.portfolioUrl,
+               course: userData?.course,
+               graduationYear: userData?.graduationYear,
+               educationLevel: userData?.educationLevel,
+               specialization: userData?.specialization,
+               phone: userData?.phone // <--- Garantir retorno do telefone
+           })
+       } catch (error) {
+           console.error('Erro detalhado ao obter perfil do usuário:', error);
+           res.status(500).json({ error: 'Erro interno do servidor ao buscar perfil', details: (error as Error).message });
+       }
+   }
 };

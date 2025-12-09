@@ -223,7 +223,7 @@ export default function AdminApplicationsPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600"/></TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8"><div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-600"/></div></TableCell></TableRow>
             ) : filtered.length > 0 ? (
               filtered.map((app) => (
                 <TableRow key={app.id} className="hover:bg-neutral-50/50">

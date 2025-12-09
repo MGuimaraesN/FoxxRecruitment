@@ -1,15 +1,15 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../database/prisma.js';
-import { sendApplicationFeedback } from '../services/mail.service.js'; // 1. Importação do serviço
+import { sendApplicationFeedback } from '../services/mail.service.js';
 
 export class ApplicationController {
     async apply(req: Request, res: Response) {
-        // Pega o objeto user completo do middleware de autenticação
         const user = (req as any).user;
         const userId = user?.userId;
-        const userEmail = user?.email; // Precisamos do email para notificar
+        const userEmail = user?.email; 
         
-        const { jobId } = req.body;
+        // Recebendo dados extras do formulário
+        const { jobId, phone, linkedinUrl, lattesUrl } = req.body;
 
         if (!userId) return res.status(401).json({ error: 'Não autenticado' });
         if (!jobId) return res.status(400).json({ error: 'Job ID é obrigatório' });
@@ -30,6 +30,38 @@ export class ApplicationController {
                 return res.status(409).json({ error: 'Você já se candidatou para esta vaga' });
             }
 
+            // --- LÓGICA DE PERSISTÊNCIA INTELIGENTE (ATUALIZAÇÃO DE PERFIL) ---
+            const currentUserData = await prisma.user.findUnique({ 
+                where: { id: userId },
+                select: { phone: true, linkedinUrl: true, lattesUrl: true }
+            });
+
+            const dataToUpdate: any = {};
+            let shouldUpdate = false;
+
+            // Só atualiza se o dado veio na request E (o campo está vazio no banco OU é diferente)
+            if (phone && (!currentUserData?.phone || currentUserData.phone !== phone)) {
+                dataToUpdate.phone = phone;
+                shouldUpdate = true;
+            }
+            if (linkedinUrl && (!currentUserData?.linkedinUrl || currentUserData.linkedinUrl !== linkedinUrl)) {
+                dataToUpdate.linkedinUrl = linkedinUrl;
+                shouldUpdate = true;
+            }
+            if (lattesUrl && (!currentUserData?.lattesUrl || currentUserData.lattesUrl !== lattesUrl)) {
+                dataToUpdate.lattesUrl = lattesUrl;
+                shouldUpdate = true;
+            }
+
+            if (shouldUpdate) {
+                await prisma.user.update({
+                    where: { id: userId },
+                    data: dataToUpdate
+                });
+                console.log(`Perfil do usuário ${userId} atualizado automaticamente via candidatura.`);
+            }
+            // ------------------------------------------------------------------
+
             const application = await prisma.application.create({
                 data: {
                     userId,
@@ -38,7 +70,6 @@ export class ApplicationController {
                 }
             });
 
-            // 2. Dispara o e-mail de confirmação (sem bloquear a resposta)
             if (userEmail) {
                 sendApplicationFeedback(userEmail, job.title)
                     .catch(err => console.error(`❌ Falha ao enviar e-mail de candidatura para ${userEmail}:`, err));
@@ -51,6 +82,7 @@ export class ApplicationController {
         }
     }
 
+    // ... (Mantenha os outros métodos: listMyApplications, getAllManagedApplications, etc. inalterados)
     async listMyApplications(req: Request, res: Response) {
         const userId = (req as any).user?.userId;
         if (!userId) return res.status(401).json({ error: 'Não autenticado' });
