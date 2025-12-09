@@ -1,19 +1,41 @@
 "use client";
 
-import { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import { createContext, useState, useEffect, ReactNode, useContext, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+
+interface Institution {
+  id: number;
+  name: string;
+  slug?: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  type: string;
+}
+
+interface UserInstitution {
+  institutionId: number;
+  roleId: number;
+  institution: Institution;
+  role: { name: string };
+}
 
 interface User {
   userId: number;
   firstName: string;
   lastName: string;
   email: string;
-  institutions: any[]; 
+  institutions: UserInstitution[]; 
   activeInstitutionId: number | null;
   avatarUrl?: string | null;
   resumeUrl?: string | null;
   linkedinUrl?: string | null;
+  lattesUrl?: string | null; // Usado para Lattes
   portfolioUrl?: string | null;
+  course?: string | null;
+  graduationYear?: number | null;
+  educationLevel?: string | null; // <--- NOVO
+  specialization?: string | null; // <--- NOVO
+  bio?: string | null;
   role?: { name: string }; 
 }
 
@@ -22,6 +44,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   activeInstitutionId: number | null;
+  currentInstitution: Institution | null;
   login: (token: string, shouldRedirect?: boolean) => Promise<void>;
   logout: () => void;
   leaveInstitution: () => Promise<void>;
@@ -61,6 +84,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
+  // 2. Computed Property para Instituição Atual
+  const currentInstitution = useMemo(() => {
+    if (!user || !activeInstitutionId) return null;
+    const link = user.institutions.find(i => i.institutionId === activeInstitutionId);
+    return link ? link.institution : null;
+  }, [user, activeInstitutionId]);
+
   const fetchUserProfile = async (tokenOverride?: string) => {
     const currentToken = tokenOverride || token || localStorage.getItem('access_token');
     if (!currentToken) {
@@ -69,7 +99,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // --- CORREÇÃO: Usar /auth/profile em vez de /auth/me ---
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
         headers: { 'Authorization': `Bearer ${currentToken}` },
         cache: 'no-store'
@@ -84,7 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else if (userData.institutions?.length > 0) {
              const isSuperAdmin = userData.institutions.some((i: any) => i.role.name === 'superadmin');
              if (isSuperAdmin) userData.role = { name: 'superadmin' };
-             else userData.role = userData.institutions[0].role;
+             else userData.role = userData.institutions[0]?.role;
         }
 
         setUser(userData);
@@ -161,6 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     token,
     loading,
     activeInstitutionId,
+    currentInstitution, 
     login,
     logout,
     leaveInstitution,

@@ -32,7 +32,7 @@ model User {
   activeInstitutionId Int?
   bio                 String?               
   linkedinUrl         String?
-  githubUrl           String?
+  lattesUrl           String?
   portfolioUrl        String?
   course              String?
   graduationYear      Int?

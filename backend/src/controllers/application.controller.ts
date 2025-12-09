@@ -221,7 +221,7 @@ export class ApplicationController {
                         select: {
                             id: true, firstName: true, lastName: true, email: true,
                             avatarUrl: true, resumeUrl: true, // CV do perfil
-                            linkedinUrl: true, githubUrl: true, portfolioUrl: true,
+                            linkedinUrl: true, lattesUrl: true, portfolioUrl: true,
                             course: true, graduationYear: true, bio: true
                         }
                     },

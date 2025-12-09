@@ -28,7 +28,7 @@ interface ApplicationDetail {
     resumeUrl: string | null;
     bio: string | null;
     linkedinUrl: string | null;
-    githubUrl: string | null;
+    lattesUrl: string | null;
     portfolioUrl: string | null;
     course: string | null;
     graduationYear: number | null;
@@ -149,9 +149,9 @@ export default function ApplicationDetailPage() {
                                     <a href={app.user.linkedinUrl} target="_blank" rel="noopener noreferrer"><Linkedin className="h-3 w-3 mr-2 text-[#0077b5]" /> LinkedIn</a>
                                 </Button>
                             )}
-                            {app.user.githubUrl && (
+                            {app.user.lattesUrl && (
                                 <Button variant="outline" size="sm" asChild className="h-8 text-xs">
-                                    <a href={app.user.githubUrl} target="_blank" rel="noopener noreferrer"><Github className="h-3 w-3 mr-2 text-neutral-800" /> GitHub</a>
+                                    <a href={app.user.lattesUrl} target="_blank" rel="noopener noreferrer"><Github className="h-3 w-3 mr-2 text-neutral-800" /> GitHub</a>
                                 </Button>
                             )}
                             {app.user.portfolioUrl && (

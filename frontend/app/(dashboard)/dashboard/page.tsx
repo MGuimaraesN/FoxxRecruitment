@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { 
   Briefcase, MapPin, Calendar, Building, 
   ChevronRight, Loader2, Clock, CheckCircle2, XCircle, FileText,
-  Search, Filter, TrendingUp, School, BookOpen, GraduationCap 
+  Search, Filter, BookOpen, GraduationCap, School 
 } from 'lucide-react';
 import { JobDetailModal } from '@/components/JobDetailModal';
 import { toast } from 'sonner';
@@ -36,7 +36,7 @@ interface Application {
     job: Job;
 }
 
-// Componente de Card de Estatística (Estilo consistente com Admin)
+// Componente de Card de Estatística
 function StatCard({ 
     title, value, icon: Icon, color, description 
 }: { 
@@ -81,11 +81,18 @@ export default function DashboardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
-  const { token } = useAuth();
+  // --- NOVA INTEGRAÇÃO: Pegando a instituição atual ---
+  const { token, currentInstitution } = useAuth();
+  // ----------------------------------------------------
 
   useEffect(() => { 
-      document.title = `Painel do Aluno | ${APP_NAME}`; 
-  }, []);
+      // Título da aba dinâmico
+      if (currentInstitution) {
+          document.title = `Painel - ${currentInstitution.name} | ${APP_NAME}`;
+      } else {
+          document.title = `Painel do Aluno | ${APP_NAME}`; 
+      }
+  }, [currentInstitution, APP_NAME]);
 
   // Fetch Candidaturas
   useEffect(() => {
@@ -172,7 +179,6 @@ export default function DashboardPage() {
     finally { setIsSaving(false); }
   };
 
-  // Configuração de Status Acadêmicos
   const getStatusConfig = (status: string) => {
       switch (status) {
           case 'ACCEPTED':
@@ -189,13 +195,20 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto pb-20 max-w-6xl space-y-8">
       
-      {/* Header Acadêmico */}
+      {/* --- HEADER ACADÊMICO ATUALIZADO --- */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
-            <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Meus Processos Seletivos</h1>
-            <p className="text-neutral-500 mt-1">Acompanhe o andamento das suas inscrições em editais e oportunidades.</p>
+            <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">
+                {currentInstitution ? `Painel - ${currentInstitution.name}` : 'Meus Processos Seletivos'}
+            </h1>
+            <p className="text-neutral-500 mt-1">
+                {currentInstitution 
+                    ? `Gerencie suas candidaturas e oportunidades na ${currentInstitution.name}.`
+                    : 'Acompanhe o andamento das suas inscrições em editais e oportunidades.'}
+            </p>
         </div>
       </div>
+      {/* ----------------------------------- */}
 
       {/* Stats Grid */}
       {!isLoading && applications.length > 0 && (

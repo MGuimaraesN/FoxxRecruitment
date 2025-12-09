@@ -7,58 +7,53 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { 
-  Mail, Building, GraduationCap, 
-  Github, Linkedin, Globe, Camera, Lock, Save, Loader2, 
-  ShieldCheck,
-  CalendarIcon
+  Mail, GraduationCap, CalendarIcon,
+  Linkedin, Globe, Camera, Lock, Save, Loader2, 
+  FileText, UploadCloud, Download, CheckCircle, BookOpen, Link as LinkIcon
 } from 'lucide-react';
-
-// Componente de Badge simples para o cargo
-const RoleBadge = ({ role }: { role: string }) => {
-    const colors: Record<string, string> = {
-        superadmin: "bg-purple-100 text-purple-700 border-purple-200",
-        admin: "bg-blue-100 text-blue-700 border-blue-200",
-        professor: "bg-emerald-100 text-emerald-700 border-emerald-200",
-        coordenador: "bg-amber-100 text-amber-700 border-amber-200",
-        empresa: "bg-indigo-100 text-indigo-700 border-indigo-200",
-    };
-    const style = colors[role] || "bg-neutral-100 text-neutral-700 border-neutral-200";
-
-    return (
-        <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-medium border capitalize ${style}`}>
-            <ShieldCheck className="h-3 w-3" />
-            {role}
-        </span>
-    );
-};
-
-const initialProfileState = {
-  bio: '',
-  linkedinUrl: '',
-  githubUrl: '',
-  portfolioUrl: '',
-  course: '',
-  graduationYear: '',
-};
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
 export default function ProfilePage() {
   const { user, token, fetchUserProfile } = useAuth();
 
-  const [profileData, setProfileData] = useState(initialProfileState);
-  const [isProfileLoading, setIsProfileLoading] = useState(false);
-  const [isAvatarLoading, setIsAvatarLoading] = useState(false);
+  // Estados do Formulário de Perfil
+  const [profileData, setProfileData] = useState({
+    bio: '',
+    linkedinUrl: '',
+    lattesUrl: '', // Usado para Lattes
+    portfolioUrl: '',
+    course: '', // Departamento / Área
+    graduationYear: '',
+    educationLevel: '', // Nova formação
+    specialization: '', // Especialidade
+  });
 
+  // Estados de Senha
   const [passwordData, setPasswordData] = useState({
     oldPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+  
+  // Estados de Carregamento
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [isAvatarLoading, setIsAvatarLoading] = useState(false);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+  
+  // Estados de Currículo
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [isResumeLoading, setIsResumeLoading] = useState(false);
 
   useEffect(() => {
-    document.title = `Meu Perfil | ${ APP_NAME }`;
+    document.title = `Perfil do Docente | ${ APP_NAME }`;
   }, []);
   
   useEffect(() => {
@@ -66,17 +61,25 @@ export default function ProfilePage() {
       setProfileData({
         bio: user.bio || '',
         linkedinUrl: user.linkedinUrl || '',
-        githubUrl: user.githubUrl || '',
+        lattesUrl: user.lattesUrl || '',
         portfolioUrl: user.portfolioUrl || '',
         course: user.course || '',
         graduationYear: user.graduationYear?.toString() || '',
+        educationLevel: user.educationLevel || '',
+        specialization: user.specialization || '',
       });
     }
   }, [user]);
 
+  // --- HANDLERS ---
+
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setProfileData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSelectChange = (value: string, field: string) => {
+    setProfileData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,7 +132,7 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
-        toast.success('Perfil salvo!');
+        toast.success('Perfil atualizado com sucesso!');
         fetchUserProfile();
       } else {
         const data = await res.json();
@@ -172,56 +175,84 @@ export default function ProfilePage() {
     }
   };
 
+  const handleResumeUpload = async () => {
+    if (!resumeFile || !token) return;
+    setIsResumeLoading(true);
+    
+    const formData = new FormData();
+    formData.append('resume', resumeFile);
+
+    try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile/resume`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        if (res.ok) {
+            toast.success('Currículo enviado com sucesso!');
+            setResumeFile(null);
+            fetchUserProfile();
+        } else {
+            const data = await res.json();
+            toast.error(data.error || 'Erro ao enviar currículo.');
+        }
+    } catch(err) {
+        toast.error('Erro de rede.');
+    } finally {
+        setIsResumeLoading(false);
+    }
+  };
+
   if (!user) return <div className="flex justify-center h-64 items-center"><Loader2 className="animate-spin text-blue-600"/></div>;
 
-  const activeInst = user.institutions.find((i: any) => i.institutionId === user.activeInstitutionId);
-  const institutionName = activeInst ? activeInst.institution.name : 'Sem vínculo ativo';
-  const roleName = activeInst ? activeInst.role.name : '';
-
   return (
-    <div className="container mx-auto pb-20 space-y-8">
+    <div className="container mx-auto pb-20 space-y-8 max-w-5xl">
       
-      {/* 1. Header do Perfil (Novo Design Clean) */}
-      <div className="relative bg-white p-8 rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
-        
-        {/* Elemento decorativo de fundo (Luz suave) */}
-        <div className="absolute top-0 right-0 -mt-16 -mr-16 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" aria-hidden="true"></div>
+      {/* 1. Header do Perfil */}
+      <div className="relative bg-white p-8 rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+        {/* Background Decorativo */}
+        <div className="absolute top-0 right-0 w-full h-32 bg-gradient-to-l from-blue-50 to-transparent pointer-events-none" />
 
-        <div className="relative flex flex-col md:flex-row items-center md:items-start gap-8 z-10">
+        <div className="relative flex flex-col md:flex-row items-center gap-6 z-10">
             
             {/* Avatar */}
             <div className="relative group shrink-0">
-                <div className="h-32 w-32 rounded-full border-[3px] border-white bg-neutral-100 overflow-hidden shadow-md flex items-center justify-center ring-1 ring-neutral-200/50">
+                <div className="h-28 w-28 rounded-full border-4 border-white bg-neutral-100 overflow-hidden shadow-lg flex items-center justify-center ring-1 ring-neutral-200">
                     {user?.avatarUrl ? (
                         <img src={`${process.env.NEXT_PUBLIC_API_URL}${user?.avatarUrl}`} alt="Avatar" className="h-full w-full object-cover" />
                     ) : (
-                        <span className="text-4xl font-bold text-neutral-400">{user.firstName[0]}{user.lastName[0]}</span>
+                        <span className="text-3xl font-bold text-neutral-400">{user.firstName[0]}{user.lastName[0]}</span>
                     )}
                     {isAvatarLoading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="text-white animate-spin"/></div>}
                 </div>
-                <label className="absolute bottom-1 right-1 bg-white p-2 rounded-full shadow-md cursor-pointer hover:bg-neutral-50 transition-colors border border-neutral-200 group-hover:border-blue-200">
-                    <Camera className="h-4 w-4 text-neutral-600 group-hover:text-blue-600 transition-colors" />
+                <label className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md cursor-pointer hover:bg-neutral-50 transition-colors border border-neutral-200 group-hover:border-blue-400 group-hover:text-blue-600">
+                    <Camera className="h-4 w-4 text-neutral-600" />
                     <input type="file" className="hidden" accept="image/*" onChange={handleAvatarChange} disabled={isAvatarLoading} />
                 </label>
             </div>
 
-            {/* Informações Básicas (Read-Only) */}
-            <div className="flex-1 pt-2 space-y-3 text-center md:text-left">
-                <div>
-                    {roleName && <div className="mb-2 flex justify-center md:justify-start"><RoleBadge role={roleName} /></div>}
-                    <h1 className="text-3xl font-bold text-neutral-900 leading-tight">{user.firstName} {user.lastName}</h1>
-                </div>
-
-                <div className="flex flex-col gap-2 items-center md:items-start">
-                    <div className="flex items-center text-sm font-medium text-neutral-700">
-                        <Building className="h-4 w-4 mr-2 text-blue-600" />
-                        {institutionName}
+            {/* Informações Principais */}
+            <div className="text-center md:text-left flex-1">
+                <h1 className="text-2xl md:text-3xl font-bold text-neutral-900 leading-tight">
+                    {user.firstName} {user.lastName}
+                </h1>
+                <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 mt-2 text-neutral-500 text-sm">
+                    <div className="flex items-center">
+                        <Mail className="h-4 w-4 mr-1.5" />
+                        {user.email}
                     </div>
-
-                    <div className="flex items-center text-sm text-neutral-500">
-                        <Mail className="h-4 w-4 mr-2 text-neutral-400" />
-                        <span>{user.email}</span>
-                    </div>
+                    {/* Se tiver titulação e departamento, mostra aqui */}
+                    {(profileData.educationLevel || profileData.course) && (
+                         <>
+                            <span className="hidden md:inline text-neutral-300">•</span>
+                            <div className="flex items-center text-blue-600 font-medium">
+                                <GraduationCap className="h-4 w-4 mr-1.5" />
+                                {profileData.educationLevel && `${profileData.educationLevel} `}
+                                {profileData.course && `em ${profileData.course}`}
+                            </div>
+                         </>
+                    )}
                 </div>
             </div>
         </div>
@@ -229,101 +260,222 @@ export default function ProfilePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* 2. Coluna Esquerda: Dados Acadêmicos & Redes */}
-        <div className="space-y-8 lg:col-span-2">
-            <form onSubmit={handleProfileSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200 space-y-8">
-                <div className="flex items-center justify-between border-b border-neutral-100 pb-5">
-                    <div>
-                        <h2 className="text-lg font-bold text-neutral-900">Informações do Perfil</h2>
-                        <p className="text-sm text-neutral-500">Mantenha seus dados acadêmicos e profissionais atualizados.</p>
+        {/* 2. Coluna Esquerda: Formulário Acadêmico */}
+        <div className="lg:col-span-2 space-y-8">
+            
+            {/* Bloco: Dados Acadêmicos */}
+            <form onSubmit={handleProfileSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200 space-y-6">
+                <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
+                    <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                        <GraduationCap className="h-5 w-5 text-blue-600" /> 
+                        Dados Acadêmicos
+                    </h2>
+                </div>
+
+                <div className="space-y-5">
+                    
+                    {/* Linha 1: Titulação e Ano */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label className="block text-sm font-medium text-neutral-700 mb-1">
+                                Titulação Máxima
+                            </label>
+                            <Select 
+                                value={profileData.educationLevel} 
+                                onValueChange={(val) => handleSelectChange(val, 'educationLevel')}
+                            >
+                                <SelectTrigger className="bg-neutral-50">
+                                    <SelectValue placeholder="Selecione sua formação" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Doutorado">Doutorado</SelectItem>
+                                    <SelectItem value="Mestrado">Mestrado</SelectItem>
+                                    <SelectItem value="Especialização">Especialização (Pós-graduação)</SelectItem>
+                                    <SelectItem value="Graduação">Graduação</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label htmlFor="graduationYear" className="block text-sm font-medium text-neutral-700 mb-1">
+                                Ano de Conclusão
+                            </label>
+                            <div className="relative">
+                                <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+                                <Input 
+                                    type="number" 
+                                    id="graduationYear" 
+                                    value={profileData.graduationYear} 
+                                    onChange={handleProfileChange} 
+                                    placeholder="Ex: 2023" 
+                                    className="bg-neutral-50 pl-9" 
+                                />
+                            </div>
+                        </div>
                     </div>
-                    <Button type="submit" disabled={isProfileLoading} className="bg-blue-600 hover:bg-blue-700 shadow-sm">
+
+                    {/* Linha 2: Departamento e Especialização */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label htmlFor="course" className="block text-sm font-medium text-neutral-700 mb-1">
+                                Departamento / Área
+                            </label>
+                            <Input 
+                                id="course" 
+                                value={profileData.course} 
+                                onChange={handleProfileChange} 
+                                placeholder="Ex: Ciência da Computação" 
+                                className="bg-neutral-50" 
+                            />
+                        </div>
+                         <div>
+                            <label htmlFor="specialization" className="block text-sm font-medium text-neutral-700 mb-1">
+                                Especialização (Opcional)
+                            </label>
+                            <Input 
+                                id="specialization" 
+                                value={profileData.specialization} 
+                                onChange={handleProfileChange} 
+                                placeholder="Ex: Inteligência Artificial" 
+                                className="bg-neutral-50" 
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="bio" className="block text-sm font-medium text-neutral-700 mb-1">
+                            Biografia & Linha de Pesquisa
+                        </label>
+                        <Textarea 
+                            id="bio" 
+                            value={profileData.bio} 
+                            onChange={handleProfileChange} 
+                            placeholder="Descreva brevemente sua trajetória acadêmica e interesses de pesquisa..." 
+                            className="min-h-[120px] resize-none bg-neutral-50" 
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                    <Button type="submit" disabled={isProfileLoading} className="bg-blue-600 hover:bg-blue-700">
                         {isProfileLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <><Save className="h-4 w-4 mr-2"/> Salvar Alterações</>}
                     </Button>
                 </div>
-
-                <div className="space-y-6">
-                    <div>
-                        <label htmlFor="bio" className="block text-sm font-medium text-neutral-700 mb-1">Biografia / Resumo Profissional</label>
-                        <Textarea id="bio" value={profileData.bio} onChange={handleProfileChange} placeholder="Conte um pouco sobre sua trajetória, interesses e objetivos..." className="min-h-[120px] resize-none bg-neutral-50/50 border-neutral-200 focus-visible:ring-blue-500" />
-                        <p className="text-xs text-neutral-500 mt-1 text-right">{profileData.bio.length}/500 caracteres</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label htmlFor="course" className="block text-sm font-medium text-neutral-700 mb-1 flex items-center gap-2">
-                                <GraduationCap className="h-4 w-4 text-blue-600"/> Curso Atual
-                            </label>
-                            <Input id="course" value={profileData.course} onChange={handleProfileChange} placeholder="Ex: Engenharia de Software" className="bg-neutral-50/50 border-neutral-200 focus-visible:ring-blue-500" />
-                        </div>
-                        <div>
-                            <label htmlFor="graduationYear" className="block text-sm font-medium text-neutral-700 mb-1 flex items-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-blue-600"/> Ano de Formatura Previsto
-                            </label>
-                            <Input type="number" id="graduationYear" value={profileData.graduationYear} onChange={handleProfileChange} placeholder="Ex: 2026" className="bg-neutral-50/50 border-neutral-200 focus-visible:ring-blue-500" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="pt-6 border-t border-neutral-100 space-y-5">
-                    <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-blue-600" /> Presença Online & Portfólio
-                    </h3>
-                    <div className="grid grid-cols-1 gap-4">
-                        <div className="relative group">
-                            <div className="absolute left-3 top-2.5 flex items-center justify-center h-5 w-5 rounded bg-[#0077b5]/10 text-[#0077b5] transition-colors group-focus-within:bg-[#0077b5] group-focus-within:text-white">
-                                <Linkedin className="h-3.5 w-3.5" />
-                            </div>
-                            <Input className="pl-10 bg-neutral-50/50 border-neutral-200 focus-visible:ring-blue-500" id="linkedinUrl" value={profileData.linkedinUrl} onChange={handleProfileChange} placeholder="URL do LinkedIn" />
-                        </div>
-                        <div className="relative group">
-                             <div className="absolute left-3 top-2.5 flex items-center justify-center h-5 w-5 rounded bg-[#333]/10 text-[#333] transition-colors group-focus-within:bg-[#333] group-focus-within:text-white">
-                                <Github className="h-3.5 w-3.5" />
-                            </div>
-                            <Input className="pl-10 bg-neutral-50/50 border-neutral-200 focus-visible:ring-blue-500" id="githubUrl" value={profileData.githubUrl} onChange={handleProfileChange} placeholder="URL do GitHub" />
-                        </div>
-                        <div className="relative group">
-                             <div className="absolute left-3 top-2.5 flex items-center justify-center h-5 w-5 rounded bg-emerald-600/10 text-emerald-600 transition-colors group-focus-within:bg-emerald-600 group-focus-within:text-white">
-                                <Globe className="h-3.5 w-3.5" />
-                            </div>
-                            <Input className="pl-10 bg-neutral-50/50 border-neutral-200 focus-visible:ring-blue-500" id="portfolioUrl" value={profileData.portfolioUrl} onChange={handleProfileChange} placeholder="URL do Portfólio / Site Pessoal" />
-                        </div>
-                    </div>
-                </div>
             </form>
+
+            {/* Bloco: Documentação (Currículo) */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200 space-y-6">
+                <div className="border-b border-neutral-100 pb-4">
+                    <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-orange-600" /> 
+                        Documentação (CV/Portfólio)
+                    </h2>
+                </div>
+
+                <div className="bg-neutral-50 rounded-lg p-5 border border-neutral-200">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${user.resumeUrl ? 'bg-green-100 text-green-600' : 'bg-neutral-200 text-neutral-400'}`}>
+                                {user.resumeUrl ? <CheckCircle className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
+                            </div>
+                            <div>
+                                <p className="font-semibold text-neutral-900">
+                                    {user.resumeUrl ? 'Documento PDF Anexado' : 'Nenhum documento enviado'}
+                                </p>
+                                <p className="text-xs text-neutral-500">
+                                    {user.resumeUrl ? 'Disponível para download.' : 'Anexe seu Currículo em PDF para facilitar processos.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {user.resumeUrl && (
+                             <Button variant="outline" size="sm" asChild className="shrink-0 gap-2">
+                                <a href={`${process.env.NEXT_PUBLIC_API_URL}${user.resumeUrl}`} target="_blank" rel="noopener noreferrer">
+                                    <Download className="h-4 w-4" /> Baixar
+                                </a>
+                             </Button>
+                        )}
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-neutral-200/50">
+                        <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2 block">
+                            {user.resumeUrl ? 'Atualizar Arquivo' : 'Fazer Upload (PDF)'}
+                        </label>
+                        <div className="flex gap-2">
+                            <Input 
+                                type="file" 
+                                accept="application/pdf" 
+                                onChange={(e) => setResumeFile(e.target.files?.[0] || null)} 
+                                className="bg-white text-sm file:text-blue-600 file:font-semibold cursor-pointer"
+                            />
+                            <Button 
+                                onClick={handleResumeUpload} 
+                                disabled={!resumeFile || isResumeLoading} 
+                                className="bg-neutral-900 text-white shrink-0"
+                            >
+                                {isResumeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
-        {/* 3. Coluna Direita: Segurança */}
+        {/* 3. Coluna Direita: Links e Segurança */}
         <div className="space-y-8">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center">
-                        <Lock className="h-5 w-5 text-red-600" />
+            
+            {/* Redes Sociais / Acadêmicas */}
+            <form onSubmit={handleProfileSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200 space-y-4">
+                 <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-blue-500" /> Links Acadêmicos
+                </h3>
+                
+                <div className="space-y-3">
+                    <div className="relative group">
+                        <div className="absolute left-3 top-2.5 flex items-center justify-center h-5 w-5 rounded bg-[#0077b5]/10 text-[#0077b5]">
+                            <Linkedin className="h-3.5 w-3.5" />
+                        </div>
+                        <Input className="pl-10 text-xs" id="linkedinUrl" value={profileData.linkedinUrl} onChange={handleProfileChange} placeholder="LinkedIn" />
                     </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-neutral-900">Segurança</h2>
-                        <p className="text-xs text-neutral-500">Acesso e credenciais.</p>
+                    
+                    {/* Lattes (mapeado para lattesUrl no backend) */}
+                    <div className="relative group">
+                            <div className="absolute left-3 top-2.5 flex items-center justify-center h-5 w-5 rounded bg-blue-100 text-blue-800 border border-blue-200">
+                            <BookOpen className="h-3.5 w-3.5" />
+                        </div>
+                        <Input 
+                            className="pl-10 text-xs" 
+                            id="lattesUrl" // Campo do DB é lattesUrl, mas visualmente é Lattes
+                            value={profileData.lattesUrl} 
+                            onChange={handleProfileChange} 
+                            placeholder="Lattes" 
+                        />
+                    </div>
+
+                    <div className="relative group">
+                            <div className="absolute left-3 top-2.5 flex items-center justify-center h-5 w-5 rounded bg-emerald-600/10 text-emerald-600">
+                            <LinkIcon className="h-3.5 w-3.5" />
+                        </div>
+                        <Input className="pl-10 text-xs" id="portfolioUrl" value={profileData.portfolioUrl} onChange={handleProfileChange} placeholder="Google Scholar / Site Pessoal" />
                     </div>
                 </div>
+                <div className="flex justify-end">
+                     <Button size="sm" type="submit" variant="ghost" className="text-blue-600 hover:text-blue-700 h-8 text-xs">Salvar Links</Button>
+                </div>
+            </form>
+
+            {/* Segurança */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200">
+                <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-red-500" /> Segurança
+                </h3>
                 
-                <p className="text-sm text-neutral-600 mb-6 leading-relaxed">
-                    Recomendamos usar uma senha forte e única para proteger sua conta.
-                </p>
-                
-                <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-medium text-neutral-700 mb-1">Senha Atual</label>
-                        <Input type="password" id="oldPassword" value={passwordData.oldPassword} onChange={handlePasswordChange} required className="bg-neutral-50/50" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-neutral-700 mb-1">Nova Senha</label>
-                        <Input type="password" id="newPassword" value={passwordData.newPassword} onChange={handlePasswordChange} required className="bg-neutral-50/50"/>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-neutral-700 mb-1">Confirmar Nova Senha</label>
-                        <Input type="password" id="confirmPassword" value={passwordData.confirmPassword} onChange={handlePasswordChange} required className="bg-neutral-50/50" />
-                    </div>
-                    <Button type="submit" variant="outline" className="w-full border-neutral-300 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 mt-2" disabled={isPasswordLoading}>
+                <form onSubmit={handlePasswordSubmit} className="space-y-3">
+                    <Input type="password" placeholder="Senha Atual" id="oldPassword" value={passwordData.oldPassword} onChange={handlePasswordChange} required className="text-xs h-9 bg-neutral-50" />
+                    <Input type="password" placeholder="Nova Senha" id="newPassword" value={passwordData.newPassword} onChange={handlePasswordChange} required className="text-xs h-9 bg-neutral-50"/>
+                    <Input type="password" placeholder="Confirmar Nova Senha" id="confirmPassword" value={passwordData.confirmPassword} onChange={handlePasswordChange} required className="text-xs h-9 bg-neutral-50" />
+                    
+                    <Button type="submit" variant="outline" className="w-full text-xs h-9 border-neutral-300 hover:bg-neutral-50 mt-2" disabled={isPasswordLoading}>
                         {isPasswordLoading ? 'Alterando...' : 'Atualizar Senha'}
                     </Button>
                 </form>

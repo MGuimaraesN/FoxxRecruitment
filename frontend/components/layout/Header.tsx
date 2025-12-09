@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { User, Shield, Bell } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
-import InstitutionSwitcher from '@/components/InstitutionSwitcher';
+// import InstitutionSwitcher from '@/components/InstitutionSwitcher'; // REMOVIDO
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -22,7 +22,7 @@ interface Notification {
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME;
 
 export default function Header() {
-  const { user, token } = useAuth();
+  const { user, token, currentInstitution } = useAuth(); // Pegamos currentInstitution
   const pathname = usePathname();
   
   // --- States de Notificação ---
@@ -67,7 +67,7 @@ export default function Header() {
     }
   };
 
-  // --- 1. Lógica para definir o Título da Página (Mantida do Original) ---
+  // --- 1. Lógica para definir o Título da Página ---
   const getPageTitle = (path: string) => {
     if (path === '/admin') return 'Dashboard Geral';
     if (path.startsWith('/admin/users')) return 'Gerenciar Usuários';
@@ -83,12 +83,13 @@ export default function Header() {
     if (path === '/dashboard/profile') return 'Meu Perfil';
     if (path.includes('/candidates')) return 'Gestão de Candidatos';
     
-    return `${ APP_NAME }`; // Padrão
+    // Se não for nenhuma rota específica, usa o nome da instituição ou o padrão
+    return currentInstitution ? currentInstitution.name : `${APP_NAME}`;
   };
 
   const pageTitle = getPageTitle(pathname);
 
-  // --- Lógica de permissão do botão Admin (Mantida do Original para segurança) ---
+  // --- Lógica de permissão do botão Admin ---
   let hasAdminAccess = false;
   if (user?.institutions) {
     const isGlobalAdmin = user.institutions.some(
@@ -101,8 +102,6 @@ export default function Header() {
         (inst: any) => inst.institution.id === user.activeInstitutionId
       );
       const activeRole = activeInstitution?.role.name;
-      // Adicionei 'empresa' aqui caso queira que empresa veja algo administrativo, 
-      // senão remova.
       if (activeRole && ['professor', 'coordenador', 'empresa'].includes(activeRole)) {
         hasAdminAccess = true;
       }
@@ -134,9 +133,9 @@ export default function Header() {
         )}
       </div>
 
-      {/* --- LADO DIREITO: Seletor, Notificações e Perfil --- */}
+      {/* --- LADO DIREITO: Notificações e Perfil (SEM SELETOR) --- */}
       <div className="flex items-center gap-6">
-        <InstitutionSwitcher />
+        {/* <InstitutionSwitcher />  <-- REMOVIDO */}
         
         {/* --- NOVO: SININHO DE NOTIFICAÇÕES --- */}
         <Popover>

@@ -29,7 +29,7 @@ const allNavLinks: NavLink[] = [
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { user, loading, getActiveRole } = useAuth();
+  const { user, loading, getActiveRole, currentInstitution } = useAuth(); // Adicionado currentInstitution
   const router = useRouter();
   const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'FoxxRecruitment';
 
@@ -61,7 +61,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen w-full bg-white">
       <Sidebar
-        title={APP_NAME}
+        // Usa o nome da instituição atual se existir, senão usa o padrão
+        title={currentInstitution ? currentInstitution.name : APP_NAME}
         icon={Building}
         navLinks={filteredLinks} 
       />

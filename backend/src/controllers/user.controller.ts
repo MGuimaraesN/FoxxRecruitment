@@ -7,6 +7,86 @@ import { upload } from '../middlewares/upload.middleware.js';
 
 export class UserController {
 
+    // ... (Mantenha os outros métodos como register, login, etc., inalterados)
+
+    async updateProfile(req: Request, res: Response) {
+        try {
+            const userEmail = (req as any).user?.email;
+            const {
+                bio,
+                linkedinUrl,
+                lattesUrl, // Usado para Lattes
+                portfolioUrl,
+                course, // Usado para Departamento/Área
+                graduationYear,
+                educationLevel, // <--- NOVO
+                specialization  // <--- NOVO
+            } = req.body;
+
+            const updatedUser = await prisma.user.update({
+                where: { email: userEmail },
+                data: {
+                    bio,
+                    linkedinUrl,
+                    lattesUrl,
+                    portfolioUrl,
+                    course,
+                    graduationYear,
+                    educationLevel, // <--- Adicionado
+                    specialization  // <--- Adicionado
+                }
+            });
+
+            res.status(200).json(updatedUser);
+        } catch (error) {
+            console.error('Erro ao atualizar perfil:', error);
+            res.status(500).json({ error: 'Erro interno do servidor' });
+        }
+    }
+
+    // ... (Mantenha uploadAvatar, uploadResume, changePassword, switchInstitution, profile, forgotPassword, resetPassword inalterados)
+
+    // Apenas garantindo que o método profile retorne tudo (o prisma findUnique já retorna tudo por padrão se não especificar select, mas bom conferir)
+    async profile(req: Request, res: Response) {
+         try {
+            const userEmail = (req as any).user?.email;
+
+            const userData = await prisma.user.findUnique({
+                where: {email: userEmail},
+                include: {
+                    institutions: {
+                        include: {
+                            institution: true,
+                            role: true
+                        }
+                    }
+                }
+            });
+
+            res.status(200).json({
+                userId: userData?.id,
+                firstName: userData?.firstName,
+                lastName: userData?.lastName,
+                email: userData?.email,
+                avatarUrl: userData?.avatarUrl,
+                institutions: userData?.institutions,
+                activeInstitutionId: userData?.activeInstitutionId,
+                bio: userData?.bio,
+                linkedinUrl: userData?.linkedinUrl,
+                lattesUrl: userData?.lattesUrl,
+                portfolioUrl: userData?.portfolioUrl,
+                course: userData?.course,
+                graduationYear: userData?.graduationYear,
+                educationLevel: userData?.educationLevel, // <--- Garantir retorno
+                specialization: userData?.specialization    // <--- Garantir retorno
+            })
+        } catch (error) {
+            console.error('Erro detalhado ao obter perfil do usuário:', error);
+            res.status(500).json({ error: 'Erro interno do servidor ao buscar perfil', details: (error as Error).message });
+        }
+    }
+    
+    // ... (Outros métodos: register, login, forgotPassword, resetPassword, uploadAvatar, uploadResume, changePassword, switchInstitution)
     async register(req: Request, res: Response) {
         try {
             const {
@@ -259,74 +339,6 @@ export class UserController {
                 return res.status(401).json({ error: 'Token inválido.' });
             }
             return res.status(500).json({ error: 'Erro interno do servidor' });
-        }
-    }
-
-    async profile(req: Request, res: Response) {
-         try {
-            const userEmail = (req as any).user?.email;
-
-            const userData = await prisma.user.findUnique({
-                where: {email: userEmail},
-                include: {
-                    institutions: {
-                        include: {
-                            institution: true,
-                            role: true
-                        }
-                    }
-                }
-            });
-
-            res.status(200).json({
-                userId: userData?.id,
-                firstName: userData?.firstName,
-                lastName: userData?.lastName,
-                email: userData?.email,
-                avatarUrl: userData?.avatarUrl,
-                institutions: userData?.institutions,
-                activeInstitutionId: userData?.activeInstitutionId,
-                bio: userData?.bio,
-                linkedinUrl: userData?.linkedinUrl,
-                githubUrl: userData?.githubUrl,
-                portfolioUrl: userData?.portfolioUrl,
-                course: userData?.course,
-                graduationYear: userData?.graduationYear
-            })
-        } catch (error) {
-            console.error('Erro detalhado ao obter perfil do usuário:', error);
-            res.status(500).json({ error: 'Erro interno do servidor ao buscar perfil', details: (error as Error).message });
-        }
-    }
-
-    async updateProfile(req: Request, res: Response) {
-        try {
-            const userEmail = (req as any).user?.email;
-            const {
-                bio,
-                linkedinUrl,
-                githubUrl,
-                portfolioUrl,
-                course,
-                graduationYear
-            } = req.body;
-
-            const updatedUser = await prisma.user.update({
-                where: { email: userEmail },
-                data: {
-                    bio,
-                    linkedinUrl,
-                    githubUrl,
-                    portfolioUrl,
-                    course,
-                    graduationYear
-                }
-            });
-
-            res.status(200).json(updatedUser);
-        } catch (error) {
-            console.error('Erro ao atualizar perfil:', error);
-            res.status(500).json({ error: 'Erro interno do servidor' });
         }
     }
 
