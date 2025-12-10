@@ -50,7 +50,7 @@ export default function ProfilePage() {
     email: '', 
     bio: '',
     linkedinUrl: '',
-    githubUrl: '', 
+    lattesUrl: '', 
     portfolioUrl: '',
     course: '', 
     graduationYear: '',
@@ -85,7 +85,7 @@ export default function ProfilePage() {
         email: user.email || '',
         bio: user.bio || '',
         linkedinUrl: user.linkedinUrl || '',
-        githubUrl: user.githubUrl || '',
+        lattesUrl: user.lattesUrl || '',
         portfolioUrl: user.portfolioUrl || '',
         course: user.course || '',
         graduationYear: user.graduationYear?.toString() || '',
@@ -248,14 +248,14 @@ export default function ProfilePage() {
                         {user.email}
                     </div>
                     {(profileData.educationLevel || profileData.course) && (
-                         <>
+                          <>
                             <span className="hidden md:inline text-neutral-300">•</span>
                             <div className="flex items-center text-blue-600 font-medium">
                                 <GraduationCap className="h-4 w-4 mr-1.5" />
                                 {profileData.educationLevel && `${profileData.educationLevel} `}
                                 {profileData.course && `em ${profileData.course}`}
                             </div>
-                         </>
+                          </>
                     )}
                 </div>
             </div>
@@ -326,9 +326,9 @@ export default function ProfilePage() {
                             <label className="block text-sm font-medium text-neutral-700 mb-1">
                                 Titulação Máxima
                             </label>
-                            
                             {/* Select Protegido com Opção Dinâmica */}
                             <Select 
+                                key={profileData.educationLevel} 
                                 value={profileData.educationLevel} 
                                 onValueChange={(val) => handleSelectChange(val, 'educationLevel')}
                             >
@@ -442,11 +442,11 @@ export default function ProfilePage() {
                             <BookOpen className="h-3.5 w-3.5" />
                         </div>
                         <Input 
-                            className="pl-10 text-xs font-medium" 
-                            id="githubUrl" 
-                            value={profileData.githubUrl} 
+                            className="pl-10 text-xs" 
+                            id="lattesUrl" 
+                            value={profileData.lattesUrl} 
                             onChange={handleProfileChange} 
-                            placeholder="Link do Currículo Lattes" 
+                            placeholder="Lattes" 
                         />
                     </div>
 

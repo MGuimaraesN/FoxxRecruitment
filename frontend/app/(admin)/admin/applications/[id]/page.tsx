@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button';
 import { 
   ChevronLeft, Building, 
   Briefcase, CheckCircle, XCircle, FileText, MapPin,
-  Linkedin, Github, Globe, User, GraduationCap, Loader2, Eye 
+  Linkedin, BookOpen, Globe, User, GraduationCap, Loader2, Eye,
+  Phone // <--- 1. Importado ícone de telefone
 } from 'lucide-react';
-// 1. IMPORTAR O HOOK
 import { useBreadcrumb } from '@/components/ui/breadcrumbs';
 import Link from 'next/link';
 
@@ -24,6 +24,8 @@ interface ApplicationDetail {
     firstName: string;
     lastName: string;
     email: string;
+    phone?: string | null;          // <--- 2. Adicionado telefone
+    educationLevel?: string | null; // <--- 3. Adicionado nível de escolaridade
     avatarUrl: string | null;
     resumeUrl: string | null;
     bio: string | null;
@@ -48,10 +50,10 @@ export default function ApplicationDetailPage() {
   const router = useRouter();
   const { token } = useAuth();
   const [app, setApp] = useState<ApplicationDetail | null>(null);
+  console.log(app);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  // 2. USAR O HOOK
   const { setCustomLabel } = useBreadcrumb();
 
   const fetchDetails = async () => {
@@ -63,8 +65,6 @@ export default function ApplicationDetailPage() {
         const data = await res.json();
         setApp(data);
         
-        // 3. DEFINIR O NOME NO BREADCRUMB
-        // Aqui usamos o nome do candidato para substituir o ID na navegação
         if (data.user) {
             setCustomLabel(String(id), `${data.user.firstName} ${data.user.lastName}`);
         }
@@ -81,7 +81,7 @@ export default function ApplicationDetailPage() {
 
   useEffect(() => {
     if (token && id) fetchDetails();
-  }, [token, id]); // Adicionei fetchDetails implícito nas deps ou ignore se preferir o padrão anterior
+  }, [token, id]); 
 
   const handleStatusChange = async (newStatus: string) => {
     setUpdating(true);
@@ -141,7 +141,18 @@ export default function ApplicationDetailPage() {
                     </div>
                     <div className="text-center md:text-left flex-1">
                         <h1 className="text-2xl font-bold text-neutral-900">{app.user.firstName} {app.user.lastName}</h1>
-                        <p className="text-neutral-500 mb-4">{app.user.email}</p>
+                        
+                        {/* E-MAIL E TELEFONE */}
+                        <div className="flex flex-col gap-1 mb-4 items-center md:items-start">
+                            <p className="text-neutral-500">{app.user.email}</p>
+                            
+                            {/* --- EXIBINDO TELEFONE --- */}
+                            {app.user.phone && (
+                                <p className="text-neutral-500 text-sm flex items-center gap-2">
+                                    <Phone className="h-3.5 w-3.5" /> {app.user.phone}
+                                </p>
+                            )}
+                        </div>
                         
                         <div className="flex flex-wrap justify-center md:justify-start gap-2">
                             {app.user.linkedinUrl && (
@@ -151,7 +162,7 @@ export default function ApplicationDetailPage() {
                             )}
                             {app.user.lattesUrl && (
                                 <Button variant="outline" size="sm" asChild className="h-8 text-xs">
-                                    <a href={app.user.lattesUrl} target="_blank" rel="noopener noreferrer"><Github className="h-3 w-3 mr-2 text-neutral-800" /> GitHub</a>
+                                    <a href={app.user.lattesUrl} target="_blank" rel="noopener noreferrer"><BookOpen className="h-3 w-3 mr-2 text-neutral-800" /> Lattes</a>
                                 </Button>
                             )}
                             {app.user.portfolioUrl && (
@@ -168,7 +179,16 @@ export default function ApplicationDetailPage() {
                         <GraduationCap className="h-4 w-4 text-blue-600" /> Formação Acadêmica
                     </h3>
                     <div className="bg-white p-4 rounded-lg border border-neutral-200">
+                        
+                        {/* --- EXIBINDO ESPECIALIZAÇÃO --- */}
+                        {app.user.educationLevel && (
+                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 mb-2">
+                                {app.user.educationLevel}
+                            </span>
+                        )}
+
                         <p className="font-medium text-neutral-900">{app.user.course || 'Curso não informado'}</p>
+                        
                         {app.user.graduationYear && (
                             <p className="text-sm text-neutral-500 mt-1">Previsão de formatura: {app.user.graduationYear}</p>
                         )}
