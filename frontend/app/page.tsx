@@ -19,11 +19,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Building,
   Loader2,
-  LogIn,
   Briefcase,
   Waypoints,
   MapPin,
@@ -34,7 +34,9 @@ import {
   Sparkles,
   ArrowRight,
   GraduationCap,
-  Globe
+  Globe,
+  Lock,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast, Toaster } from 'sonner';
@@ -225,12 +227,6 @@ export default function LandingPage() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-16 mt-20 pt-10 border-t border-white/5">
-                <StatItem value={totalJobs > 0 ? `${totalJobs}+` : "Carregando..."} label="Vagas Ativas" />
-                <StatItem value={partners.length > 0 ? `${partners.length}` : "Diversas"} label="Instituições" />
-                <StatItem value="100%" label="Gratuito" />
-                <StatItem value="24h" label="Disponibilidade" />
-            </div>
         </section>
 
         {partners.length > 0 && (
@@ -258,76 +254,6 @@ export default function LandingPage() {
                 </div>
             </section>
         )}
-
-        <section id="vagas" className="py-20 md:py-32 relative">
-          <div className="container mx-auto max-w-7xl px-4">
-            
-            <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Mural de Oportunidades</h2>
-                <p className="text-slate-400">Filtre, encontre e decole na sua carreira.</p>
-            </div>
-
-            <div className="sticky top-20 z-30 mb-12 -mx-4 md:mx-auto max-w-5xl">
-              <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl shadow-black/50 mx-4 ring-1 ring-white/5">
-                <div className="flex flex-col md:flex-row gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 h-5 w-5" />
-                    <Input
-                        placeholder="Busque por cargo, empresa ou tag..."
-                        value={filters.search}
-                        onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                        className="w-full bg-transparent border-0 text-white placeholder:text-slate-500 focus-visible:ring-0 h-12 pl-12 rounded-xl"
-                    />
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 px-1 md:px-0 scrollbar-hide">
-                    <Select value={filters.areaId} onValueChange={(value) => setFilters(prev => ({ ...prev, areaId: value === 'all' ? '' : value }))}>
-                        <SelectTrigger className="w-[160px] bg-white/5 border-0 text-slate-300 h-12 rounded-xl hover:bg-white/10 transition-all">
-                            <SelectValue placeholder="Área" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#0f172a] border-slate-800 text-slate-200">
-                            <SelectItem value="all">Todas as Áreas</SelectItem>
-                            {areas.map(area => <SelectItem key={area.id} value={String(area.id)}>{area.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <Select value={filters.categoryId} onValueChange={(value) => setFilters(prev => ({ ...prev, categoryId: value === 'all' ? '' : value }))}>
-                        <SelectTrigger className="w-[160px] bg-white/5 border-0 text-slate-300 h-12 rounded-xl hover:bg-white/10 transition-all">
-                            <SelectValue placeholder="Nível" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#0f172a] border-slate-800 text-slate-200">
-                            <SelectItem value="all">Todos os Níveis</SelectItem>
-                            {categories.map(cat => <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <Button className="h-12 px-6 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg">
-                        Buscar
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {loadingJobs ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-                <Loader2 className="h-10 w-10 animate-spin mb-4 text-blue-500" />
-                <p>Carregando vagas...</p>
-              </div>
-            ) : jobs.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {jobs.map((job) => (
-                  <JobCard key={job.id} job={job} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-24 bg-white/5 rounded-3xl border border-white/5 border-dashed">
-                  <div className="bg-white/5 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Briefcase className="h-8 w-8 text-slate-500" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-white">Nenhuma vaga encontrada</h3>
-                  <p className="text-slate-400 mt-2">Tente ajustar seus filtros de busca.</p>
-              </div>
-            )}
-          </div>
-        </section>
 
         <section className="py-24 bg-slate-900 border-t border-white/5 relative overflow-hidden">
            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1),transparent_70%)]" />
@@ -465,7 +391,9 @@ function FeatureCard({ icon: Icon, title, description }: { icon: any, title: str
   );
 }
 
-// Modal de Login
+// ============================================
+// MODAL DE LOGIN ATUALIZADO
+// ============================================
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -508,18 +436,94 @@ function LoginModal({ isOpen, onClose, login, router }: LoginModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-[#18181b] border-slate-800 text-slate-50">
-        <DialogHeader><DialogTitle className="text-center text-white">Login</DialogTitle></DialogHeader>
-        <form onSubmit={handleLoginSubmit} className="space-y-4 mt-2">
-            <Input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" required className="bg-slate-900 border-slate-700 text-white" />
-            <Input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Senha" required className="bg-slate-900 border-slate-700 text-white" />
-            
-            {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-            
-            <Button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-500 text-white">
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Entrar'}
-            </Button>
-        </form>
+      <DialogContent className="sm:max-w-[425px] bg-[#0f172a] border-white/10 text-slate-50 p-0 overflow-hidden shadow-2xl shadow-black">
+        
+        {/* Cabeçalho Visual */}
+        <div className="bg-slate-950 p-6 pb-4 border-b border-white/5">
+            <div className="mx-auto w-12 h-12 bg-blue-600/10 rounded-xl flex items-center justify-center mb-4 text-blue-500">
+                <Building className="h-6 w-6" />
+            </div>
+            <DialogHeader className="space-y-2">
+                <DialogTitle className="text-2xl font-bold text-center text-white">Acesse sua conta</DialogTitle>
+                <DialogDescription className="text-center text-slate-400">
+                    Entre com suas credenciais para continuar sua jornada.
+                </DialogDescription>
+            </DialogHeader>
+        </div>
+
+        <div className="p-6 pt-4">
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+                
+                {/* Inputs com Ícones */}
+                <div className="space-y-2">
+                    <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                        <Input 
+                            type="email" 
+                            value={email} 
+                            onChange={e=>setEmail(e.target.value)} 
+                            placeholder="seu@email.com" 
+                            required 
+                            className="bg-slate-900/50 border-slate-800 text-white pl-10 focus:border-blue-500/50 focus:ring-blue-500/20 transition-all h-11" 
+                        />
+                    </div>
+                    
+                    <div className="space-y-1">
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                            <Input 
+                                type="password" 
+                                value={password} 
+                                onChange={e=>setPassword(e.target.value)} 
+                                placeholder="Sua senha" 
+                                required 
+                                className="bg-slate-900/50 border-slate-800 text-white pl-10 focus:border-blue-500/50 focus:ring-blue-500/20 transition-all h-11" 
+                            />
+                        </div>
+                        
+                        {/* Link Esqueceu Senha */}
+                        <div className="flex justify-end">
+                            <Link 
+                                href="/forgot-password" 
+                                className="text-xs text-blue-400 hover:text-blue-300 transition-colors pt-1 font-medium"
+                                onClick={onClose}
+                            >
+                                Esqueceu a senha?
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Display de Erro */}
+                {error && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <p>{error}</p>
+                    </div>
+                )}
+                
+                <Button 
+                    type="submit" 
+                    disabled={isLoading} 
+                    className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium rounded-xl shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                            Entrando...
+                        </>
+                    ) : 'Entrar na Plataforma'}
+                </Button>
+            </form>
+
+            {/* Rodapé do Modal */}
+            <div className="mt-6 text-center text-sm text-slate-400">
+                Não tem uma conta?{' '}
+                <Link href="/register" className="text-blue-400 hover:text-blue-300 font-semibold hover:underline transition-all" onClick={onClose}>
+                    Crie agora
+                </Link>
+            </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
